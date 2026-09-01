@@ -49,7 +49,13 @@ export const posts = sqliteTable(
     /** "markdown" (content is Markdown) or "blocks" (content is a JSON BlocksDoc). */
     format: text("format", { enum: ["markdown", "blocks"] }).notNull().default("markdown"),
     excerpt: text("excerpt"),
-    status: text("status", { enum: ["draft", "published", "scheduled"] }).notNull().default("draft"),
+    status: text("status", { enum: ["draft", "published", "scheduled", "trashed"] }).notNull().default("draft"),
+    /** ImageRef JSON or null. */
+    featuredImage: text("featured_image", { mode: "json" }).$type<Record<string, unknown> | null>(),
+    /** { title, description, ogImage, noindex } JSON. */
+    seo: text("seo", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    /** Set when trashed, so trash can be auto-purged later. */
+    trashedAt: text("trashed_at"),
     authorId: text("author_id"),
     publishedAt: text("published_at"),
     meta: text("meta", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
@@ -111,7 +117,17 @@ export const media = sqliteTable("media", {
   alt: text("alt"),
   width: integer("width"),
   height: integer("height"),
+  /** Resized renditions: [{ width, url, format }] (images only). */
+  variants: text("variants", { mode: "json" }).$type<Array<{ width: number; url: string; format?: string }>>().notNull().default([]),
   createdAt: text("created_at").notNull(),
+});
+
+export const menus = sqliteTable("menus", {
+  location: text("location").primaryKey(),
+  name: text("name").notNull(),
+  /** MenuItem[] JSON (one level of nesting). */
+  items: text("items", { mode: "json" }).$type<unknown[]>().notNull().default([]),
+  updatedAt: text("updated_at").notNull(),
 });
 
 export const settings = sqliteTable("settings", {
@@ -125,7 +141,7 @@ export const auditLog = sqliteTable(
   {
     id: text("id").primaryKey(),
     ts: text("ts").notNull(),
-    actorKind: text("actor_kind", { enum: ["user", "agent", "anon"] }).notNull(),
+    actorKind: text("actor_kind", { enum: ["user", "agent", "anon", "system"] }).notNull(),
     actorId: text("actor_id"),
     channel: text("channel", { enum: ["ui", "rest", "mcp", "system"] }).notNull(),
     tool: text("tool").notNull(),
@@ -141,7 +157,7 @@ export const aiUsage = sqliteTable(
   {
     id: text("id").primaryKey(),
     ts: text("ts").notNull(),
-    actorKind: text("actor_kind", { enum: ["user", "agent", "anon"] }).notNull(),
+    actorKind: text("actor_kind", { enum: ["user", "agent", "anon", "system"] }).notNull(),
     actorId: text("actor_id"),
     channel: text("channel", { enum: ["ui", "rest", "mcp", "system"] }).notNull(),
     tool: text("tool").notNull(),

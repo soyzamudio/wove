@@ -82,6 +82,7 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   draft: "neutral",
   published: "green",
   scheduled: "amber",
+  trashed: "red",
 };
 
 export function StatusPill({ status }: { status: string }) {
@@ -89,7 +90,7 @@ export function StatusPill({ status }: { status: string }) {
 }
 
 export function ActorBadge({ kind }: { kind: string }) {
-  const tones: Record<string, BadgeTone> = { user: "sky", agent: "violet", anon: "neutral" };
+  const tones: Record<string, BadgeTone> = { user: "sky", agent: "violet", anon: "neutral", system: "amber" };
   const label = kind === "user" ? "human" : kind;
   return <Badge tone={tones[kind] ?? "neutral"}>{label}</Badge>;
 }

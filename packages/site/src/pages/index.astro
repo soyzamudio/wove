@@ -4,12 +4,19 @@ import PostCard from "@theme/PostCard.astro";
 import { BlockRenderer } from "@agentpress/blocks";
 import { getPostBySlug, getSettings, listPosts } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
+import { resolveSeo, resolveUrl } from "../lib/seo";
 import { API_URL } from "../lib/env";
 
 const settings = await getSettings();
 const homePost = await getPostBySlug("home");
 const home = homePost && homePost.status === "published" ? homePost : null;
 const isBlocks = home ? home.format === "blocks" && Boolean(home.blocks) : false;
+const seo = home ? resolveSeo(home, API_URL) : null;
+const featuredImage = home?.featuredImage ?? null;
+const featuredImageUrl = featuredImage ? resolveUrl(featuredImage.url, API_URL) : null;
+const featuredSrcset = featuredImage?.variants?.length
+  ? featuredImage.variants.map((v) => `${resolveUrl(v.url, API_URL)} ${v.width}w`).join(", ")
+  : undefined;
 
 let items: Awaited<ReturnType<typeof listPosts>>["items"] = [];
 let nextCursor: string | null = null;
@@ -30,16 +37,29 @@ if (home) {
 
 <Layout
   settings={settings}
-  title={home ? home.title : undefined}
-  description={home ? (home.excerpt ?? undefined) : undefined}
+  title={home ? seo!.title : undefined}
+  description={home ? (seo!.description ?? undefined) : undefined}
   path={Astro.url.pathname + Astro.url.search}
   variant={isBlocks ? "wide" : "content"}
+  ogImage={seo?.ogImage ?? null}
+  noindex={seo?.noindex ?? false}
 >
   {home ? (
     isBlocks ? (
       <BlockRenderer doc={home.blocks!} ctx={{ mediaBase: API_URL }} />
     ) : (
       <article>
+        {featuredImageUrl && (
+          <img
+            class="featured-image"
+            src={featuredImageUrl}
+            srcset={featuredSrcset}
+            sizes="(max-width: 72rem) 100vw, 72rem"
+            alt={featuredImage?.alt || ""}
+            width={featuredImage?.width}
+            height={featuredImage?.height}
+          />
+        )}
         <h1 class="page-title">{home.title}</h1>
         <div class="prose" set:html={html} />
       </article>

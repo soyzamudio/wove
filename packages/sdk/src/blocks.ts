@@ -7,10 +7,15 @@ import { z } from "zod";
 
 export const BlockId = z.string().min(1);
 
+export const ImageVariant = z.object({ width: z.number().int(), url: z.string(), format: z.string().optional() });
+export type ImageVariant = z.infer<typeof ImageVariant>;
 export const ImageRef = z.object({
   url: z.string().describe("absolute URL or /media/... path"),
   alt: z.string().default(""),
   mediaId: z.string().optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional(),
+  variants: z.array(ImageVariant).optional().describe("resized renditions for srcset; filled from the media library"),
 });
 export type ImageRef = z.infer<typeof ImageRef>;
 

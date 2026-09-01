@@ -3,6 +3,7 @@ import Layout from "@theme/Layout.astro";
 import { BlockRenderer } from "@agentpress/blocks";
 import { getPostBySlug, getSettings } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
+import { resolveSeo, resolveUrl } from "../lib/seo";
 import { API_URL } from "../lib/env";
 
 const { slug } = Astro.params;
@@ -19,14 +20,22 @@ const html = found && !isBlocks ? renderMarkdown(post!.content, API_URL) : "";
 const dateLabel = post?.publishedAt
   ? new Date(post.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
   : null;
+const seo = found ? resolveSeo(post!, API_URL) : null;
+const featuredImage = found ? post!.featuredImage : null;
+const featuredImageUrl = featuredImage ? resolveUrl(featuredImage.url, API_URL) : null;
+const featuredSrcset = featuredImage?.variants?.length
+  ? featuredImage.variants.map((v) => `${resolveUrl(v.url, API_URL)} ${v.width}w`).join(", ")
+  : undefined;
 ---
 
 <Layout
   settings={settings}
-  title={found ? post!.title : "Not found"}
-  description={found ? (post!.excerpt ?? undefined) : undefined}
+  title={found ? (seo!.title) : "Not found"}
+  description={found ? (seo!.description ?? undefined) : undefined}
   path={`/${slug ?? ""}`}
   variant={isBlocks ? "wide" : "content"}
+  ogImage={seo?.ogImage ?? null}
+  noindex={seo?.noindex ?? false}
 >
   {!found ? (
     <div class="not-found">
@@ -38,6 +47,17 @@ const dateLabel = post?.publishedAt
     <BlockRenderer doc={post!.blocks!} ctx={{ mediaBase: API_URL }} />
   ) : (
     <article>
+      {featuredImageUrl && (
+        <img
+          class="featured-image"
+          src={featuredImageUrl}
+          srcset={featuredSrcset}
+          sizes="(max-width: 72rem) 100vw, 72rem"
+          alt={featuredImage?.alt || ""}
+          width={featuredImage?.width}
+          height={featuredImage?.height}
+        />
+      )}
       <h1 class="page-title">{post!.title}</h1>
       {dateLabel && (
         <p class="post-meta">

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BlockProps, BlocksDoc, type BlockType } from "@agentpress/sdk";
-import { BLOCK_TYPES, blockDefaults, newBlock, resolveUrl, renderMarkdown, BlockRenderer, BlockView } from "./index";
+import { BLOCK_TYPES, blockDefaults, newBlock, resolveUrl, renderMarkdown, BlockRenderer, BlockView, imgAttrs, SIZES } from "./index";
 import { sampleDoc } from "./fixtures";
 import { resolveIcon } from "./icon";
 import { Icon } from "./index";
@@ -114,5 +114,90 @@ describe("helpers", () => {
     expect(shield).not.toBe(fallback);
     expect(resolveIcon(undefined)).toBe(fallback);
     expect(renderToStaticMarkup(<Icon name="zap" />)).not.toBe(renderToStaticMarkup(<Icon name="nope-xyz" />));
+  });
+});
+
+describe("responsive images", () => {
+  const img = {
+    url: "/media/m1-photo.png",
+    alt: "A photo",
+    width: 1200,
+    height: 600,
+    variants: [
+      { width: 480, url: "/media/m1-photo.png.w480.webp", format: "webp" },
+      { width: 960, url: "/media/m1-photo.png.w960.webp", format: "webp" },
+      { width: 1200, url: "/media/m1-photo.png.w1200.webp", format: "webp" },
+    ],
+  };
+  const plain = { url: "/media/m2-plain.png", alt: "No variants" };
+
+  test("imgAttrs builds a srcset from variants and resolves urls against mediaBase", () => {
+    const a = imgAttrs(img, { mediaBase: "https://cdn.test" }, SIZES.image) as any;
+    expect(a.src).toBe("https://cdn.test/media/m1-photo.png");
+    expect(a.srcSet).toBe(
+      "https://cdn.test/media/m1-photo.png.w480.webp 480w, " +
+        "https://cdn.test/media/m1-photo.png.w960.webp 960w, " +
+        "https://cdn.test/media/m1-photo.png.w1200.webp 1200w",
+    );
+    expect(a.sizes).toBe(SIZES.image);
+    expect(a.width).toBe(1200);
+    expect(a.height).toBe(600);
+  });
+
+  test("imgAttrs omits srcset without variants, and without a sizes hint", () => {
+    expect((imgAttrs(plain, {}, SIZES.image) as any).srcSet).toBeUndefined();
+    expect((imgAttrs(img, {}) as any).srcSet).toBeUndefined();
+    expect(imgAttrs(undefined, {})).toEqual({});
+  });
+
+  test("image block emits srcset, sizes and intrinsic dimensions", () => {
+    const html = renderToStaticMarkup(
+      <BlockView block={{ id: "x", type: "image", props: { image: img, width: "wide" } }} ctx={{}} />,
+    );
+    // React renders the attribute as `srcSet`; HTML attribute names are case-insensitive.
+    expect(html).toContain(
+      'srcSet="/media/m1-photo.png.w480.webp 480w, /media/m1-photo.png.w960.webp 960w, /media/m1-photo.png.w1200.webp 1200w"',
+    );
+    expect(html).toContain(`sizes="${SIZES.image}"`);
+    expect(html).toContain('width="1200"');
+    expect(html).toContain('height="600"');
+  });
+
+  test("hero and gallery use their own sizes", () => {
+    const hero = renderToStaticMarkup(
+      <BlockView block={{ id: "h", type: "hero", props: { headline: "Hi", buttons: [], image: img, layout: "split" } }} ctx={{}} />,
+    );
+    expect(hero).toContain(`sizes="${SIZES.hero}"`);
+    expect(hero).toContain("/media/m1-photo.png.w960.webp 960w");
+
+    const gallery = renderToStaticMarkup(
+      <BlockView block={{ id: "g", type: "gallery", props: { images: [img], columns: 3 } }} ctx={{}} />,
+    );
+    expect(gallery).toContain(`sizes="${SIZES.gallery}"`);
+  });
+
+  test("logos and avatars stay single-source but keep intrinsic dimensions", () => {
+    const logos = renderToStaticMarkup(
+      <BlockView block={{ id: "l", type: "logos", props: { logos: [img] } }} ctx={{}} />,
+    );
+    expect(logos).not.toMatch(/srcset/i);
+    expect(logos).toContain('width="1200"');
+
+    const quotes = renderToStaticMarkup(
+      <BlockView
+        block={{ id: "t", type: "testimonials", props: { items: [{ quote: "Great", name: "Ada", avatar: img }] } }}
+        ctx={{}}
+      />,
+    );
+    expect(quotes).not.toMatch(/srcset/i);
+    expect(quotes).toContain("/media/m1-photo.png");
+  });
+
+  test("images without variants still render a plain src", () => {
+    const html = renderToStaticMarkup(
+      <BlockView block={{ id: "x", type: "image", props: { image: plain, width: "wide" } }} ctx={{}} />,
+    );
+    expect(html).toContain('src="/media/m2-plain.png"');
+    expect(html).not.toMatch(/srcset/i);
   });
 });

@@ -3,7 +3,7 @@
 import { mkdirSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { openDb, defaultDbPath } from "../src/db";
-import { posts, users, agents } from "../src/db/schema";
+import { media, posts, users, agents } from "../src/db/schema";
 import { hooks } from "../src/hooks";
 import { registerCoreTools, registry, dispatch } from "../src/tools";
 import { mediaDir } from "../src/tools/media";
@@ -82,6 +82,7 @@ const seedPosts = [
   },
   {
     type: "page", title: "Home", slug: "home", status: "published",
+    seo: { description: "agentpress is an open-source CMS where every editorial action is a typed, permissioned, audited tool — drivable by people and agents alike." },
     // A blocks page: `content` is the JSON document, `format` is set to "blocks" by post.create.
     blocks: {
       version: 1,
@@ -155,6 +156,26 @@ const seedPosts = [
   },
 ];
 
+// ---- menus
+await call("menu.set", {
+  location: "header",
+  name: "Header",
+  items: [
+    { id: "home", label: "Home", href: "/" },
+    { id: "blog", label: "Blog", href: "/blog" },
+    { id: "about", label: "About", href: "/about" },
+  ],
+});
+await call("menu.set", {
+  location: "footer",
+  name: "Footer",
+  items: [
+    { id: "about", label: "About", href: "/about" },
+    { id: "blog", label: "Blog", href: "/blog" },
+  ],
+});
+console.log("  menus   header, footer");
+
 let created = 0;
 for (const p of seedPosts) {
   const slug = (p as any).slug;
@@ -164,5 +185,24 @@ for (const p of seedPosts) {
   created += 1;
 }
 console.log(`  content ${created} post(s)/page(s) created`);
+
+// ---- featured image on the first published post, when the library has something to point at
+const firstImage = db.select().from(media).all().find((m) => m.mime.startsWith("image/"));
+if (firstImage) {
+  const target = db.select().from(posts).where(eq(posts.slug, "hello-agentpress")).get();
+  if (target && !target.featuredImage) {
+    await call("post.update", {
+      id: target.id,
+      featuredImage: {
+        url: firstImage.url,
+        alt: firstImage.alt ?? "",
+        mediaId: firstImage.id,
+        ...(firstImage.width ? { width: firstImage.width } : {}),
+        ...(firstImage.height ? { height: firstImage.height } : {}),
+      },
+    });
+    console.log(`  featured ${firstImage.url} -> ${target.slug}`);
+  }
+}
 console.log(`  db      ${defaultDbPath()}`);
 console.log("  done.");

@@ -1,10 +1,10 @@
-import { and, desc, eq, like, or, inArray } from "drizzle-orm";
+import { and, desc, eq, like, ne, or, inArray } from "drizzle-orm";
 import { BlocksDoc, ToolCatalog, ToolDescriptions, type PostFormat } from "@agentpress/sdk";
 import { posts, postTerms, revisions, terms as termsTable } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import { defineTool, badRequest, notFound, type Ctx } from "./registry";
 import {
-  decodeCursor, encodeCursor, hydratePost, hydratePosts, setPostTerms, uniqueSlug,
+  decodeCursor, encodeCursor, hydratePost, hydratePosts, parseSeo, setPostTerms, uniqueSlug,
 } from "./shared";
 import { LooseBlocksDoc, excerptFromDoc, withBlockIds } from "./blocks";
 
@@ -76,7 +76,9 @@ export const postList = defineTool({
   handler: (ctx, input) => {
     const where = [] as any[];
     if (input.type) where.push(eq(posts.type, input.type));
+    // No explicit status = everything except the trash.
     if (input.status) where.push(eq(posts.status, input.status));
+    else where.push(ne(posts.status, "trashed"));
     if (input.q) {
       const q = `%${input.q}%`;
       where.push(or(like(posts.title, q), like(posts.content, q))!);
@@ -141,6 +143,8 @@ export const postCreate = defineTool({
       content: write.content ?? input.content,
       format: write.format ?? "markdown",
       excerpt: input.excerpt ?? (write.doc ? excerptFromDoc(write.doc) : null) ?? null,
+      featuredImage: input.featuredImage ?? null,
+      seo: parseSeo(input.seo ?? {}),
       status: input.status,
       authorId: ctx.actor.kind === "user" ? ctx.actor.id : null,
       publishedAt: input.publishedAt ?? (input.status === "published" ? ts : null),
@@ -196,6 +200,13 @@ export const postUpdate = defineTool({
     // Only fill a derived excerpt when there is none; never clobber one an editor wrote.
     else if (write.doc && !prev.excerpt) draft.excerpt = excerptFromDoc(write.doc);
     if (input.meta !== undefined) draft.meta = input.meta;
+    if (input.featuredImage !== undefined) draft.featuredImage = input.featuredImage ?? null;
+    // `seo` is a partial patch: only the keys the caller sent change.
+    if (input.seo !== undefined) {
+      const merged: Record<string, unknown> = { ...parseSeo(prev.seo) };
+      for (const [k, v] of Object.entries(input.seo)) if (v !== undefined) merged[k] = v;
+      draft.seo = parseSeo(merged);
+    }
     if (input.slug !== undefined) draft.slug = uniqueSlug(ctx.db, input.slug, prev.id);
     if (input.status !== undefined) {
       draft.status = input.status;
@@ -222,16 +233,109 @@ export const postUpdate = defineTool({
   },
 });
 
+/** Hard-delete rows and everything hanging off them. FKs cascade, but be explicit. */
+function purgePosts(ctx: Ctx, ids: string[]): number {
+  if (ids.length === 0) return 0;
+  ctx.db.delete(revisions).where(inArray(revisions.postId, ids)).run();
+  ctx.db.delete(postTerms).where(inArray(postTerms.postId, ids)).run();
+  ctx.db.delete(posts).where(inArray(posts.id, ids)).run();
+  return ids.length;
+}
+
 export const postDelete = defineTool({
   name: "post.delete",
   description: D["post.delete"],
   input: ToolCatalog["post.delete"].input,
   output: ToolCatalog["post.delete"].output,
   scopes: ToolCatalog["post.delete"].scopes,
-  handler: (ctx, input) => {
-    getPostRow(ctx, input.id);
-    ctx.db.delete(posts).where(eq(posts.id, input.id)).run();
-    return { ok: true as const };
+  handler: async (ctx, input) => {
+    const row = getPostRow(ctx, input.id);
+    const hookCtx = { actor: ctx.actor, channel: ctx.channel };
+    if (input.permanent) {
+      purgePosts(ctx, [row.id]);
+      return { ok: true as const, trashed: false };
+    }
+    ctx.db.update(posts)
+      .set({ status: "trashed", trashedAt: nowIso(), updatedAt: nowIso() })
+      .where(eq(posts.id, row.id))
+      .run();
+    await ctx.hooks.emit("post.trash", { post: hydratePost(ctx.db, getPostRow(ctx, row.id)), ctx: hookCtx });
+    return { ok: true as const, trashed: true };
+  },
+});
+
+export const postRestore = defineTool({
+  name: "post.restore",
+  description: D["post.restore"],
+  input: ToolCatalog["post.restore"].input,
+  output: ToolCatalog["post.restore"].output,
+  scopes: ToolCatalog["post.restore"].scopes,
+  handler: async (ctx, input) => {
+    const prev = getPostRow(ctx, input.id);
+    ctx.db.update(posts)
+      .set({ status: "draft", trashedAt: null, updatedAt: nowIso() })
+      .where(eq(posts.id, prev.id))
+      .run();
+    const post = hydratePost(ctx.db, getPostRow(ctx, prev.id));
+    await ctx.hooks.emit("post.restore", { post, ctx: { actor: ctx.actor, channel: ctx.channel } });
+    return post;
+  },
+});
+
+export const postEmptyTrash = defineTool({
+  name: "post.emptyTrash",
+  description: D["post.emptyTrash"],
+  input: ToolCatalog["post.emptyTrash"].input,
+  output: ToolCatalog["post.emptyTrash"].output,
+  scopes: ToolCatalog["post.emptyTrash"].scopes,
+  handler: (ctx) => {
+    const ids = ctx.db.select({ id: posts.id }).from(posts).where(eq(posts.status, "trashed")).all().map((r) => r.id);
+    return { ok: true as const, deleted: purgePosts(ctx, ids) };
+  },
+});
+
+/**
+ * One action over many ids. Audited once as `post.bulk` (dispatch writes the row) rather
+ * than as N per-post calls.
+ */
+export const postBulk = defineTool({
+  name: "post.bulk",
+  description: D["post.bulk"],
+  input: ToolCatalog["post.bulk"].input,
+  output: ToolCatalog["post.bulk"].output,
+  scopes: ToolCatalog["post.bulk"].scopes,
+  handler: async (ctx, input) => {
+    const rows = ctx.db.select().from(posts).where(inArray(posts.id, input.ids)).all();
+    if (rows.length === 0) return { ok: true as const, affected: 0 };
+    const ts = nowIso();
+    const hookCtx = { actor: ctx.actor, channel: ctx.channel };
+
+    if (input.action === "delete") {
+      return { ok: true as const, affected: purgePosts(ctx, rows.map((r) => r.id)) };
+    }
+
+    const set: Record<string, unknown> = { updatedAt: ts };
+    if (input.action === "trash") Object.assign(set, { status: "trashed", trashedAt: ts });
+    if (input.action === "restore") Object.assign(set, { status: "draft", trashedAt: null });
+    if (input.action === "draft") Object.assign(set, { status: "draft", trashedAt: null, publishedAt: null });
+    if (input.action === "publish") Object.assign(set, { status: "published", trashedAt: null });
+
+    for (const row of rows) {
+      const values = { ...set };
+      if (input.action === "publish" && !row.publishedAt) values.publishedAt = ts;
+      ctx.db.update(posts).set(values as any).where(eq(posts.id, row.id)).run();
+    }
+
+    const hook = input.action === "trash" ? "post.trash"
+      : input.action === "restore" ? "post.restore"
+      : input.action === "publish" ? "post.publish"
+      : null;
+    if (hook) {
+      for (const row of rows) {
+        await ctx.hooks.emit(hook as "post.trash", { post: hydratePost(ctx.db, getPostRow(ctx, row.id)), ctx: hookCtx });
+      }
+    }
+    return { ok: true as const, affected: rows.length };
   },
 });
 
@@ -276,5 +380,6 @@ export const postRevisions = defineTool({
 });
 
 export const contentTools = [
-  postList, postGet, postCreate, postUpdate, postDelete, postPublish, postRevisions,
+  postList, postGet, postCreate, postUpdate, postDelete, postRestore, postEmptyTrash,
+  postBulk, postPublish, postRevisions,
 ];

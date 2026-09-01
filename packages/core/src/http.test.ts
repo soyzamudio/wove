@@ -82,6 +82,50 @@ describe("http + auth + plugins", () => {
     expect((await req("/api/public/terms")).status).toBe(200);
   });
 
+  test("public reads never surface trashed posts", async () => {
+    const p = unwrap(await h.call(ADMIN, "post.create", { title: "Trashed publicly", status: "published" }));
+    expect((await req(`/api/public/posts/${p.slug}`)).status).toBe(200);
+
+    unwrap(await h.call(ADMIN, "post.delete", { id: p.id }));
+    const body = await (await req("/api/public/posts")).json();
+    expect(body.items.map((x: any) => x.slug)).not.toContain(p.slug);
+    expect((await req(`/api/public/posts/${p.slug}`)).status).toBe(404);
+    expect((await (await req("/api/public/search?q=Trashed")).json()).items).toEqual([]);
+  });
+
+  test("public search ranks title matches first and hides unpublished content", async () => {
+    unwrap(await h.call(ADMIN, "post.create", {
+      title: "Agentics in the body", status: "published", content: "nothing to see",
+    }));
+    unwrap(await h.call(ADMIN, "post.create", {
+      title: "Body mentions the word", status: "published", content: "an agentics deep dive",
+    }));
+    unwrap(await h.call(ADMIN, "post.create", { title: "Agentics draft", content: "agentics" }));
+
+    const hits = await (await req("/api/public/search?q=agentics")).json();
+    const slugs = hits.items.map((p: any) => p.slug);
+    expect(slugs[0]).toBe("agentics-in-the-body"); // title match wins
+    expect(slugs).toContain("body-mentions-the-word");
+    expect(slugs).not.toContain("agentics-draft");
+
+    // case-insensitive, and posts carry the new fields
+    expect((await (await req("/api/public/search?q=AGENTICS")).json()).items.length).toBe(slugs.length);
+    expect(hits.items[0]).toHaveProperty("featuredImage");
+    expect(hits.items[0].seo).toMatchObject({ noindex: false });
+
+    // too short, and the limit is capped at 50
+    expect((await (await req("/api/public/search?q=a")).json()).items).toEqual([]);
+    expect((await (await req("/api/public/search?q=agentics&limit=999")).json()).items.length).toBeLessThanOrEqual(50);
+  });
+
+  test("public menus and design are readable without auth", async () => {
+    unwrap(await h.call(ADMIN, "menu.set", { location: "header", name: "Header", items: [{ id: "h", label: "Home", href: "/" }] }));
+    unwrap(await h.call(ADMIN, "design.update", { radius: 8 }));
+    const menus = await (await req("/api/public/menus")).json();
+    expect(menus[0]).toMatchObject({ location: "header", name: "Header" });
+    expect((await (await req("/api/public/design")).json()).radius).toBe(8);
+  });
+
   test("plugin tools appear in the registry, REST and /api/tools", async () => {
     registerPlugin(
       {

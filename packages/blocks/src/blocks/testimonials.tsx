@@ -1,5 +1,6 @@
 import type { BlockOf } from "@agentpress/sdk";
-import { resolveUrl, type RenderContext } from "../context";
+import type { RenderContext } from "../context";
+import { imgAttrs } from "../image-attrs";
 import { Icon } from "../icon";
 import { SectionHead, gridClass } from "../ui";
 
@@ -17,7 +18,7 @@ export function Testimonials({ props, ctx }: { props: BlockOf<"testimonials">["p
             <blockquote>{t.quote}</blockquote>
             <figcaption className="ap-quote__person">
               {t.avatar?.url ? (
-                <img src={resolveUrl(t.avatar.url, ctx)} alt={t.avatar.alt ?? t.name} loading="lazy" />
+                <img {...imgAttrs(t.avatar, ctx)} alt={t.avatar.alt ?? t.name} loading="lazy" />
               ) : null}
               <span>
                 <span className="ap-quote__name">{t.name}</span>

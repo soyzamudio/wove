@@ -1,9 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Copy, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import type { Media as MediaItem } from "@agentpress/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
-import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, errorMessage } from "../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorBanner, Modal, PageHeader, Spinner, errorMessage } from "../components/ui";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -24,7 +24,87 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-function MediaCard({ item, onDelete, isDeleting }: { item: MediaItem; onDelete: () => void; isDeleting: boolean }) {
+/** `1200 × 800` when the dimensions are known. */
+function dimensions(item: MediaItem): string | null {
+  return item.width && item.height ? `${item.width} × ${item.height}` : null;
+}
+
+/** Details drawer: every generated rendition, with copyable URLs. */
+function MediaDetails({ item, onClose }: { item: MediaItem | null; onClose: () => void }) {
+  const toast = useToast();
+
+  async function copy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("URL copied to clipboard");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  const variants = item?.variants ?? [];
+
+  return (
+    <Modal open={item !== null} onClose={onClose} title={item?.path.split("/").pop() ?? "Media"} className="max-w-xl">
+      {item && (
+        <div className="space-y-4">
+          <img
+            src={item.url}
+            alt={item.alt ?? ""}
+            className="max-h-56 w-full rounded-lg border border-zinc-200 object-contain dark:border-zinc-800"
+          />
+          <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <div>
+              {item.mime} · {formatSize(item.size)}
+              {dimensions(item) ? ` · ${dimensions(item)}` : ""}
+            </div>
+            {item.alt && <div>Alt: {item.alt}</div>}
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Sizes ({variants.length + 1})
+            </div>
+            <div className="space-y-1">
+              {[{ width: item.width ?? 0, url: item.url, format: undefined as string | undefined, original: true }, ...variants.map((v) => ({ ...v, original: false }))].map(
+                (v) => (
+                  <div
+                    key={v.url}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-200 px-2.5 py-1.5 dark:border-zinc-800"
+                  >
+                    <span className="w-24 shrink-0 text-xs font-medium">
+                      {v.original ? "Original" : `${v.width}w`}
+                      {v.format ? ` · ${v.format}` : ""}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400" title={v.url}>
+                      {v.url}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => copy(v.url)}>
+                      <Copy className="h-3 w-3" aria-hidden="true" />
+                      Copy
+                    </Button>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function MediaCard({
+  item,
+  onDelete,
+  isDeleting,
+  onOpen,
+}: {
+  item: MediaItem;
+  onDelete: () => void;
+  isDeleting: boolean;
+  onOpen: () => void;
+}) {
   const toast = useToast();
 
   async function copyUrl() {
@@ -60,7 +140,14 @@ function MediaCard({ item, onDelete, isDeleting }: { item: MediaItem; onDelete: 
           <span>{item.mime}</span>
         </div>
 
-        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-zinc-950/60 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`Details for ${filename}`}
+          className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+        />
+
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 bg-zinc-950/60 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [&>*]:pointer-events-auto">
           <button
             type="button"
             onClick={copyUrl}
@@ -88,7 +175,13 @@ function MediaCard({ item, onDelete, isDeleting }: { item: MediaItem; onDelete: 
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400">
           {item.mime} · {formatSize(item.size)}
+          {dimensions(item) ? ` · ${dimensions(item)}` : ""}
         </div>
+        {item.variants.length > 0 && (
+          <Badge tone="sky" className="mt-1">
+            {item.variants.length} size{item.variants.length === 1 ? "" : "s"}
+          </Badge>
+        )}
       </div>
     </div>
   );
@@ -99,6 +192,7 @@ export function Media() {
   const invalidate = useInvalidateTool();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [details, setDetails] = useState<MediaItem | null>(null);
 
   const upload = useToolMutation("media.upload", {
     onSuccess: () => {
@@ -167,6 +261,7 @@ export function Media() {
                   key={item.id}
                   item={item}
                   isDeleting={del.isPending}
+                  onOpen={() => setDetails(item)}
                   onDelete={() => {
                     if (window.confirm(`Delete "${item.path.split("/").pop()}"? This cannot be undone.`)) {
                       del.mutate({ id: item.id });
@@ -178,6 +273,8 @@ export function Media() {
           )}
         </Card>
       )}
+
+      <MediaDetails item={details} onClose={() => setDetails(null)} />
     </div>
   );
 }

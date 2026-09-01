@@ -22,6 +22,13 @@
       "when": 1788280119180,
       "tag": "0002_colorful_la_nuit",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788281924577,
+      "tag": "0003_shocking_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }

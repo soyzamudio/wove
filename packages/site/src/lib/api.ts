@@ -1,7 +1,7 @@
-import type { Post, Settings, Term } from "@agentpress/sdk";
+import type { Design, Menu, Post, Settings, Term } from "@agentpress/sdk";
 import { API_URL, MOCK } from "./env";
 import { cached } from "./cache";
-import { mockAllContent, mockSettings, mockTerms } from "./mock-data";
+import { mockAllContent, mockDesign, mockMenus, mockSearch, mockSettings, mockTerms } from "./mock-data";
 
 export interface ListPostsParams {
   type?: Post["type"];
@@ -61,6 +61,24 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 export async function listTerms(): Promise<Term[]> {
   if (MOCK) return mockTerms;
   return getJson<Term[]>("/api/public/terms");
+}
+
+export async function getMenus(): Promise<Menu[]> {
+  if (MOCK) return mockMenus;
+  return getJson<Menu[]>("/api/public/menus");
+}
+
+export async function getDesign(): Promise<Design> {
+  if (MOCK) return mockDesign;
+  return getJson<Design>("/api/public/design");
+}
+
+export async function searchPosts(q: string, limit = 20): Promise<Post[]> {
+  if (!q.trim()) return [];
+  if (MOCK) return mockSearch(q, limit);
+  const qs = new URLSearchParams({ q, limit: String(limit) });
+  const { items } = await getJson<{ items: Post[] }>(`/api/public/search?${qs.toString()}`);
+  return items;
 }
 
 /** Every published post/page — used by /llms.txt, /llms-full.txt, /sitemap.xml. */

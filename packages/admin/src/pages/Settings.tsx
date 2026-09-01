@@ -1,16 +1,25 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import type { Settings as SettingsType } from "@agentpress/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
 import { Button, Card, ErrorBanner, Input, Label, PageHeader, Spinner, Tabs, errorMessage } from "../components/ui";
 import { SettingsAi } from "./SettingsAi";
+import { SettingsDesign } from "./SettingsDesign";
 
-type SettingsTab = "site" | "ai";
+type SettingsTab = "site" | "design" | "ai";
 
 const TABS: { label: string; value: SettingsTab }[] = [
   { label: "Site", value: "site" },
+  { label: "Design", value: "design" },
   { label: "AI", value: "ai" },
 ];
+
+const TAB_PATHS: Record<SettingsTab, string> = {
+  site: "/settings",
+  design: "/settings/design",
+  ai: "/settings/ai",
+};
 
 const EMPTY: SettingsType = {
   siteTitle: "",
@@ -21,7 +30,10 @@ const EMPTY: SettingsType = {
 };
 
 export function Settings() {
-  const [tab, setTab] = useState<SettingsTab>("site");
+  // The tab lives in the URL so /settings/design is linkable from the palette.
+  const { tab: tabParam } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+  const tab: SettingsTab = tabParam === "design" || tabParam === "ai" ? tabParam : "site";
   const settings = useToolQuery("settings.get", {});
   const invalidate = useInvalidateTool();
   const toast = useToast();
@@ -48,10 +60,10 @@ export function Settings() {
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Site identity and AI configuration" />
+      <PageHeader title="Settings" subtitle="Site identity, design and AI configuration" />
 
       <div className="mb-6">
-        <Tabs tabs={TABS} value={tab} onChange={setTab} />
+        <Tabs tabs={TABS} value={tab} onChange={(next) => navigate(TAB_PATHS[next])} />
       </div>
 
       {tab === "site" && (
@@ -103,6 +115,8 @@ export function Settings() {
           )}
         </div>
       )}
+
+      {tab === "design" && <SettingsDesign />}
 
       {tab === "ai" && <SettingsAi />}
     </div>

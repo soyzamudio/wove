@@ -11,28 +11,28 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Pages | ✅ | Block documents + visual builder |
 | Block editor (Gutenberg) | ✅ | Section-level blocks, AI-augmented; posts stay Markdown by design |
 | Revisions | ✅ | Every update; restore via UI |
-| Draft / Published / Scheduled | 🟡 | Scheduled posts never flip to `published` (no scheduler) |
+| Draft / Published / Scheduled | ✅ | In-process scheduler flips due posts (audited as `system`) |
 | Pending review workflow | ❌ | Needed for multi-author *and* for agent-proposed changes |
 | Categories & tags | ✅ | Custom taxonomies ❌ |
 | Custom post types + custom fields (CPT/ACF) | ❌ | The "WordPress as app platform" backbone — see §3 |
-| Featured image | ❌ | `meta` can hold it; no UI, no site output |
+| Featured image | ✅ | Editor rail + site output with srcset |
 | Excerpts | ✅ | Derived for block pages |
 | Permalinks | 🟡 | Flat `/slug`; no structure settings, no page hierarchy/parent |
-| Trash (soft delete) + restore | ❌ | Deletes are permanent |
-| Bulk / quick edit | ❌ | |
+| Trash (soft delete) + restore | ✅ | `post.delete` trashes; `permanent:true` purges |
+| Bulk / quick edit | 🟡 | Bulk trash/restore/publish/draft/delete; no quick edit |
 | Sticky posts, post formats | ❌ | Low value |
 | Private / password-protected posts | ❌ | |
-| Autosave / draft recovery | ❌ | |
-| Search (admin) | ✅ | Public-site search ❌ |
+| Autosave / draft recovery | ✅ | Local (browser) recovery in both editors |
+| Search (admin + public) | ✅ | `/search` + `/api/public/search` |
 
 ### Media
 | WordPress | agentpress | Notes |
 |---|---|---|
 | Media library, uploads, alt text | ✅ | Base64 upload; no size cap yet |
-| Image sizes / thumbnails / srcset | ❌ | Needs `sharp`; matters for performance claims |
+| Image sizes / thumbnails / srcset | ✅ | sharp → webp 480/960/1600 + original; srcset everywhere |
 | Image editing (crop/rotate) | ❌ | |
 | oEmbed (YouTube, X…) | ❌ | Markdown + `html` block cover it manually |
-| Cloud storage (S3) | ❌ | Local disk only; required for cloud edition |
+| Cloud storage (S3) | ✅ | `AGENTPRESS_STORAGE=s3` (Bun S3 client; R2/MinIO via endpoint) |
 
 ### Users & access
 | WordPress | agentpress | Notes |
@@ -47,11 +47,11 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | WordPress | agentpress | Notes |
 |---|---|---|
 | Themes (multiple, switchable) | 🟡 | One default theme; `@theme` alias exists |
-| Customizer / global styles (colors, fonts, logo) | ❌ | Blocks CSS already uses variables — needs a settings UI + tool |
-| Navigation menus | ❌ | Site nav is hardcoded (Home/Blog) |
+| Customizer / global styles (colors, fonts, logo) | ✅ | Settings → Design with live preview; `design.*` tools |
+| Navigation menus | ✅ | Menus page (drag tree, one level); `menu.*` tools |
 | Widgets / sidebars | ❌ | Replace with block areas (header/footer) |
 | Block patterns | 🟡 | Templates in builder empty state; no user-saved patterns |
-| Custom CSS | ❌ | Trivial to add |
+| Custom CSS | ✅ | Part of Design |
 | Site editor (FSE) | 🟡 | Pages yes; header/footer/blog templates no |
 
 ### Engagement
@@ -69,13 +69,13 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Shortcodes | ❌ | Blocks replace them |
 | REST API | ✅ | Plus OpenAPI |
 | MCP | ✅ | Unique |
-| RSS / JSON Feed | 🟡 | JSON Feed yes; RSS/Atom no |
+| RSS / JSON Feed | ✅ | `/rss.xml` + `/feed.json` |
 | Sitemap | ✅ | |
-| SEO meta (title/description/OG image) per post | ❌ | Yoast-class basics belong in core |
+| SEO meta (title/description/OG image) per post | ✅ | Title/description/OG/noindex + search preview |
 | Redirects / 404 log | ❌ | |
 | Import from WordPress (WXR) / export | ❌ | **Adoption blocker** |
 | Backups | ❌ | Cloud edition; OSS = SQLite file + media dir |
-| Cron / scheduled tasks | ❌ | Needed for scheduled publish, agent schedules |
+| Cron / scheduled tasks | 🟡 | 30s in-process scheduler for publishing; no general job queue |
 | Email notifications | ❌ | |
 | Site health / updates | 🟡 | Health card only |
 | Multisite | ❌ | Cloud edition handles tenancy |
@@ -91,7 +91,7 @@ Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identit
 
 ## 3. Proposed roadmap
 
-### Phase A — table stakes (a real site can go live)
+### Phase A — table stakes (a real site can go live) — ✅ shipped 2026-09-01
 1. **Navigation menus** — `menu` tools + admin editor + site header/footer render; AI can "add Pricing to the nav".
 2. **Featured image + SEO meta** per post/page (title, description, OG image, noindex) with site output.
 3. **Trash / restore**, bulk actions, autosave.

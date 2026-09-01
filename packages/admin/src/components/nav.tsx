@@ -5,6 +5,7 @@ import {
   Files,
   Image,
   LayoutDashboard,
+  Menu,
   ScrollText,
   Settings as SettingsIcon,
   Wrench,
@@ -40,6 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/posts", label: "Posts", icon: FileText, badge: "draftPosts" },
       { to: "/pages", label: "Pages", icon: Files },
       { to: "/media", label: "Media", icon: Image },
+      { to: "/menus", label: "Menus", icon: Menu },
     ],
   },
   {

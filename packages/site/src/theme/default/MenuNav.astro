@@ -1,0 +1,19 @@
+---
+import type { MenuItem } from "@agentpress/sdk";
+
+interface Props {
+  items: MenuItem[];
+  depth?: number;
+}
+
+const { items, depth = 0 } = Astro.props;
+---
+
+<ul class={depth === 0 ? "menu" : "menu-sub"}>
+  {items.map((item) => (
+    <li class="menu-item">
+      <a href={item.href}>{item.label}</a>
+      {item.children && item.children.length > 0 && <Astro.self items={item.children} depth={depth + 1} />}
+    </li>
+  ))}
+</ul>

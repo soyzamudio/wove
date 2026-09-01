@@ -1,5 +1,7 @@
 ---
 import type { Post } from "@agentpress/sdk";
+import { API_URL } from "../../lib/env";
+import { resolveUrl } from "../../lib/seo";
 
 interface Props {
   post: Post;
@@ -10,9 +12,16 @@ const { post } = Astro.props;
 const dateLabel = post.publishedAt
   ? new Date(post.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
   : null;
+
+const thumbUrl = post.featuredImage ? resolveUrl(post.featuredImage.url, API_URL) : null;
 ---
 
 <li class="post-card">
+  {thumbUrl && (
+    <a href={`/${post.slug}`}>
+      <img class="post-card-thumb" src={thumbUrl} alt={post.featuredImage?.alt || ""} loading="lazy" />
+    </a>
+  )}
   <h2><a href={`/${post.slug}`}>{post.title}</a></h2>
   <p class="post-meta">
     {dateLabel && <time datetime={post.publishedAt ?? undefined}>{dateLabel}</time>}

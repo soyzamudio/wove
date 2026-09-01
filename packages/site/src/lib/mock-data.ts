@@ -1,4 +1,4 @@
-import type { Post, Settings, Term } from "@agentpress/sdk";
+import type { Design, Menu, Post, Settings, Term } from "@agentpress/sdk";
 import { sampleDoc } from "@agentpress/blocks";
 
 const now = "2026-01-01T00:00:00.000Z";
@@ -9,6 +9,45 @@ export const mockSettings: Settings = {
   siteUrl: "http://localhost:4321",
   theme: "default",
   postsPerPage: 10,
+};
+
+export const mockMenus: Menu[] = [
+  {
+    location: "header",
+    name: "Header",
+    items: [
+      { id: "m-home", label: "Home", href: "/" },
+      { id: "m-blog", label: "Blog", href: "/blog" },
+      {
+        id: "m-about",
+        label: "About",
+        href: "/about",
+        children: [{ id: "m-about-team", label: "Our approach", href: "/about#approach" }],
+      },
+    ],
+  },
+  {
+    location: "footer",
+    name: "Footer",
+    items: [
+      { id: "f-blog", label: "Blog", href: "/blog" },
+      { id: "f-feed", label: "RSS", href: "/rss.xml" },
+    ],
+  },
+];
+
+export const mockDesign: Design = {
+  logo: null,
+  colors: {
+    accent: "#e8734a",
+    background: "#ffffff",
+    foreground: "#18181b",
+    darkBackground: "#0a0a0a",
+    darkForeground: "#f4f4f5",
+  },
+  fonts: { heading: "inter", body: "system" },
+  radius: 10,
+  customCss: ".site-title a { letter-spacing: -0.02em; }",
 };
 
 export const mockPosts: Post[] = [
@@ -23,6 +62,18 @@ export const mockPosts: Post[] = [
       "![A placeholder graphic](/media/hello.jpg)\n\n" +
       "Agents and humans publish through the same typed tools.",
     excerpt: "An introductory post welcoming you to agentpress.",
+    featuredImage: {
+      url: "/media/hello-featured.jpg",
+      alt: "A placeholder hero graphic",
+      width: 1600,
+      height: 900,
+      variants: [
+        { width: 400, url: "/media/hello-featured-400.jpg" },
+        { width: 800, url: "/media/hello-featured-800.jpg" },
+        { width: 1600, url: "/media/hello-featured-1600.jpg" },
+      ],
+    },
+    seo: { title: null, description: null, ogImage: null, noindex: false },
     status: "published",
     authorId: "1",
     publishedAt: "2026-01-01T09:00:00.000Z",
@@ -46,6 +97,13 @@ export const mockPosts: Post[] = [
       "no client-side JavaScript unless a theme opts in.\n\nIt also exposes `/llms.txt` and " +
       "`/feed.json` so agents can consume the site without scraping HTML.",
     excerpt: "Notes on how the Astro-based public site renders content.",
+    featuredImage: null,
+    seo: {
+      title: "Shipping the Public Renderer — a deep dive",
+      description: "Custom SEO description overriding the excerpt for search engines and social cards.",
+      ogImage: null,
+      noindex: false,
+    },
     status: "published",
     authorId: "1",
     publishedAt: "2026-01-05T12:00:00.000Z",
@@ -66,6 +124,8 @@ export const mockPages: Post[] = [
     title: "About",
     content: "# About\n\nagentpress is an open-source, agent-native CMS.",
     excerpt: "What agentpress is and who it's for.",
+    featuredImage: null,
+    seo: { title: null, description: null, ogImage: null, noindex: false },
     status: "published",
     authorId: "1",
     publishedAt: "2026-01-01T00:00:00.000Z",
@@ -85,6 +145,8 @@ export const mockPages: Post[] = [
       title: "Home",
       content: JSON.stringify(blocks),
       excerpt: "A CMS your agents can actually use.",
+      featuredImage: null,
+      seo: { title: null, description: null, ogImage: null, noindex: false },
       status: "published",
       authorId: "1",
       publishedAt: "2026-01-01T00:00:00.000Z",
@@ -105,3 +167,13 @@ export const mockTerms: Term[] = [
   { id: "t2", taxonomy: "tag", slug: "updates", name: "Updates", count: 1 },
   { id: "t3", taxonomy: "category", slug: "news", name: "News", count: 1 },
 ];
+
+/** Naive title/content substring search over the published mock fixtures. */
+export function mockSearch(q: string, limit = 20): Post[] {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return [];
+  return mockAllContent
+    .filter((post) => post.status === "published")
+    .filter((post) => post.title.toLowerCase().includes(needle) || post.content.toLowerCase().includes(needle))
+    .slice(0, limit);
+}

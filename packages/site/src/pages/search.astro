@@ -1,0 +1,26 @@
+---
+import Layout from "@theme/Layout.astro";
+import PostCard from "@theme/PostCard.astro";
+import { getSettings, searchPosts } from "../lib/api";
+
+const settings = await getSettings();
+const q = Astro.url.searchParams.get("q")?.trim() ?? "";
+const results = q ? await searchPosts(q) : [];
+---
+
+<Layout settings={settings} title={q ? `Search: ${q}` : "Search"} path={Astro.url.pathname + Astro.url.search}>
+  <h1 class="page-title">Search</h1>
+  <form class="search-form" action="/search" method="get">
+    <input type="search" name="q" placeholder="Search posts…" aria-label="Search posts" value={q} />
+    <button type="submit">Search</button>
+  </form>
+  {q && (
+    results.length === 0 ? (
+      <p>No results for "{q}".</p>
+    ) : (
+      <ul class="post-list">
+        {results.map((post) => <PostCard post={post} />)}
+      </ul>
+    )
+  )}
+</Layout>

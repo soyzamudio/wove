@@ -25,6 +25,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     return [
       { label: "New post", hint: "Create", to: "/posts/new" },
       { label: "New page", hint: "Create", to: "/pages/new" },
+      { label: "Design", hint: "Settings", to: "/settings/design" },
       ...nav,
     ];
   }, []);

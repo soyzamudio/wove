@@ -9,9 +9,11 @@ import { auditTools } from "./audit";
 import { aiTools } from "./ai";
 import { blockTools } from "./blocks";
 import { aiPageTools } from "./ai-pages";
+import { menuTools } from "./menus";
+import { designTools } from "./design";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */
@@ -25,3 +27,5 @@ export function registerCoreTools(reg: Registry = registry): Registry {
 export * from "./registry";
 export { mediaDir } from "./media";
 export { readSettings } from "./shared";
+export { readMenus, readMenu } from "./menus";
+export { readDesign, writeDesign } from "./design";

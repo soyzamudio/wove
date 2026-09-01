@@ -2,7 +2,11 @@
 import "./Prose.css";
 import "@agentpress/blocks/blocks.css";
 import { API_URL } from "../../lib/env";
+import { getDesign, getMenus } from "../../lib/api";
+import { resolveMenuItems } from "../../lib/menu";
+import { FontMeta, designToCssVars } from "@agentpress/sdk";
 import type { Settings } from "@agentpress/sdk";
+import MenuNav from "./MenuNav.astro";
 
 interface Props {
   settings: Settings;
@@ -11,14 +15,34 @@ interface Props {
   path?: string;
   /** "wide" drops the 68ch prose constraint for block-based pages. */
   variant?: "content" | "wide";
+  /** Absolute URL, resolved by the page (see `lib/seo.ts`). */
+  ogImage?: string | null;
+  noindex?: boolean;
 }
 
-const { settings, title, description, path = "/", variant = "content" } = Astro.props;
+const { settings, title, description, path = "/", variant = "content", ogImage = null, noindex = false } = Astro.props;
+
+const [design, menus] = await Promise.all([getDesign(), getMenus()]);
+const headerItems = resolveMenuItems(menus, "header");
+const footerItems = resolveMenuItems(menus, "footer");
+
+const cssVars = designToCssVars(design);
+const cssVarsText = Object.entries(cssVars)
+  .map(([key, value]) => `${key}:${value};`)
+  .join("");
+
+const googleFonts = [...new Set([design.fonts.heading, design.fonts.body])]
+  .map((font) => FontMeta[font].google)
+  .filter((family): family is string => Boolean(family));
+const fontsHref = googleFonts.length
+  ? `https://fonts.googleapis.com/css2?${googleFonts.map((f) => `family=${f}`).join("&")}&display=swap`
+  : null;
 
 const siteUrl = settings.siteUrl.replace(/\/+$/, "");
 const pageTitle = title ? `${title} · ${settings.siteTitle}` : settings.siteTitle;
 const pageDescription = description ?? settings.tagline;
 const canonicalUrl = `${siteUrl}${path}`;
+const query = new URL(Astro.url).searchParams.get("q") ?? "";
 ---
 
 <!doctype html>
@@ -30,29 +54,65 @@ const canonicalUrl = `${siteUrl}${path}`;
     <meta name="description" content={pageDescription} />
     <link rel="canonical" href={canonicalUrl} />
     <link rel="alternate" type="application/feed+json" title={`${settings.siteTitle} Feed`} href={`${siteUrl}/feed.json`} />
+    <link rel="alternate" type="application/rss+xml" title={`${settings.siteTitle} RSS`} href={`${siteUrl}/rss.xml`} />
     <meta name="agentpress-api" content={API_URL} />
+    {noindex && <meta name="robots" content="noindex" />}
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={settings.siteTitle} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={pageDescription} />
     <meta property="og:url" content={canonicalUrl} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={pageDescription} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+    {fontsHref && (
+      <>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="stylesheet" href={fontsHref} />
+      </>
+    )}
+    <style set:html={`:root{${cssVarsText}}@media (prefers-color-scheme: dark){:root{--ap-bg:var(--ap-dark-bg);--ap-fg:var(--ap-dark-fg);}}`} />
+    {design.customCss && <style set:html={design.customCss} />}
   </head>
   <body>
     <div class={`site-shell${variant === "wide" ? " site-shell--wide" : ""}`}>
       <header class="site-header">
-        <p class="site-title"><a href="/">{settings.siteTitle}</a></p>
+        <div class="site-header-top">
+          {design.logo ? (
+            <p class="site-title site-title--logo">
+              <a href="/"><img src={design.logo.url} alt={design.logo.alt || settings.siteTitle} /></a>
+            </p>
+          ) : (
+            <p class="site-title"><a href="/">{settings.siteTitle}</a></p>
+          )}
+          <form class="site-search" action="/search" method="get">
+            <input type="search" name="q" placeholder="Search" aria-label="Search" value={query} />
+            <button type="submit">Search</button>
+          </form>
+        </div>
         {settings.tagline && <p class="site-tagline">{settings.tagline}</p>}
-        <nav class="site-nav">
-          <a href="/blog">Blog</a>
+        <nav class="site-nav" aria-label="Primary">
+          <MenuNav items={headerItems} />
         </nav>
       </header>
       <main>
         <slot />
       </main>
       <footer class="site-footer">
+        {footerItems.length > 0 && (
+          <nav class="site-nav site-nav--footer" aria-label="Footer">
+            <MenuNav items={footerItems} />
+          </nav>
+        )}
         <p>
-          <a href="/feed.json">JSON Feed</a> · <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a>
+          © {new Date().getFullYear()} {settings.siteTitle} ·{" "}
+          <a href="/feed.json">JSON Feed</a> · <a href="/rss.xml">RSS</a> · <a href="/llms.txt">llms.txt</a> ·{" "}
+          <a href="/llms-full.txt">llms-full.txt</a>
         </p>
       </footer>
     </div>

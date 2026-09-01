@@ -2,11 +2,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { marked } from "marked";
 import { ExternalLink, History, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
-import type { Post } from "@agentpress/sdk";
+import type { ImageRef, Post } from "@agentpress/sdk";
 import { streamAi, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
+import { draftKey } from "../lib/draftRecovery";
+import { useDraftRecovery } from "../hooks/useDraftRecovery";
 import { useToast } from "../context/ToastContext";
+import {
+  EMPTY_SEO,
+  ImageRefField,
+  RecoveryBanner,
+  SeoSection,
+  TrashedBanner,
+  seoFromPost,
+  seoToInput,
+  type SeoState,
+} from "../components/editor";
 import {
   Button,
   Card,
@@ -64,6 +76,8 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const [content, setContent] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [category, setCategory] = useState("");
+  const [featuredImage, setFeaturedImage] = useState<ImageRef | null>(null);
+  const [seo, setSeo] = useState<SeoState>(EMPTY_SEO);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [showRevisions, setShowRevisions] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -195,14 +209,44 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
     setTitle(post.title);
     setSlug(post.slug);
     setSlugTouched(true);
-    setStatus(post.status);
+    // "trashed" isn't an option in the Status select; the trash banner handles it.
+    setStatus(post.status === "trashed" ? "draft" : post.status);
     setPublishedAtLocal(isoToLocalInput(post.publishedAt));
     setExcerpt(post.excerpt ?? "");
     setContent(post.content ?? "");
     setTagsInput(post.terms.filter((t) => t.taxonomy === "tag").map((t) => t.name).join(", "));
     setCategory(post.terms.find((t) => t.taxonomy === "category")?.name ?? "");
+    setFeaturedImage(post.featuredImage ?? null);
+    setSeo(seoFromPost(post));
     setLoadedId(post.id);
   }, [postQuery.data, loadedId]);
+
+  // ---- autosave / recovery -------------------------------------------------
+  const formState = useMemo(
+    () => ({ title, slug, status, publishedAtLocal, excerpt, content, tagsInput, category, featuredImage, seo }),
+    [title, slug, status, publishedAtLocal, excerpt, content, tagsInput, category, featuredImage, seo]
+  );
+  type FormState = typeof formState;
+
+  const recovery = useDraftRecovery<FormState>(draftKey(id, postType), formState, {
+    // Only start writing once the server copy is in (or immediately for a new post).
+    enabled: isCreate || loadedId !== null,
+    serverUpdatedAt: postQuery.data?.updatedAt ?? null,
+  });
+
+  function applyRecovered(data: FormState) {
+    setTitle(data.title);
+    setSlug(data.slug);
+    setSlugTouched(true);
+    setStatus(data.status);
+    setPublishedAtLocal(data.publishedAtLocal);
+    setExcerpt(data.excerpt);
+    setContent(data.content);
+    setTagsInput(data.tagsInput);
+    setCategory(data.category);
+    setFeaturedImage(data.featuredImage ?? null);
+    setSeo(data.seo ?? EMPTY_SEO);
+  }
 
   const html = useMemo(() => {
     try {
@@ -217,6 +261,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const updateMutation = useToolMutation("post.update");
   const publishMutation = useToolMutation("post.publish");
   const deleteMutation = useToolMutation("post.delete");
+  const restoreMutation = useToolMutation("post.restore");
   const revisionsQuery = useToolQuery("post.revisions", { id: id ?? "" }, { enabled: false });
 
   function buildTerms() {
@@ -242,9 +287,12 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
           status,
           publishedAt,
           terms: buildTerms(),
+          featuredImage,
+          seo: seoToInput(seo),
         },
         {
           onSuccess: (created: Post) => {
+            recovery.clear();
             toast.success(`${noun} created`);
             invalidate("post.list");
             invalidate("post.get");
@@ -264,9 +312,12 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
           status,
           publishedAt,
           terms: buildTerms(),
+          featuredImage,
+          seo: seoToInput(seo),
         },
         {
           onSuccess: () => {
+            recovery.clear();
             toast.success(`${noun} saved`);
             invalidate("post.list");
             invalidate("post.get");
@@ -284,7 +335,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
       {
         onSuccess: (updated: Post) => {
           toast.success(`${noun} published`);
-          setStatus(updated.status);
+          setStatus(updated.status === "trashed" ? "draft" : updated.status);
           setPublishedAtLocal(isoToLocalInput(updated.publishedAt));
           invalidate("post.list");
           invalidate("post.get");
@@ -294,13 +345,62 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
     );
   }
 
-  function handleDelete() {
+  /** Delete now means "move to trash", with a one-click undo. */
+  function handleTrash() {
     if (!id) return;
-    if (!window.confirm(`Delete this ${noun}?`)) return;
     deleteMutation.mutate(
       { id },
       {
         onSuccess: () => {
+          recovery.clear();
+          invalidate("post.list");
+          invalidate("post.get");
+          toast.success("Moved to trash", {
+            label: "Undo",
+            onClick: () =>
+              restoreMutation.mutate(
+                { id },
+                {
+                  onSuccess: () => {
+                    toast.success(`${noun} restored`);
+                    invalidate("post.list");
+                    invalidate("post.get");
+                  },
+                  onError: (err) => toast.error(errorMessage(err)),
+                }
+              ),
+          });
+          navigate(basePath);
+        },
+        onError: (err) => toast.error(errorMessage(err)),
+      }
+    );
+  }
+
+  function handleRestore() {
+    if (!id) return;
+    restoreMutation.mutate(
+      { id },
+      {
+        onSuccess: (updated: Post) => {
+          toast.success(`${noun} restored`);
+          setStatus(updated.status === "trashed" ? "draft" : updated.status);
+          invalidate("post.list");
+          invalidate("post.get");
+        },
+        onError: (err) => toast.error(errorMessage(err)),
+      }
+    );
+  }
+
+  function handleDeleteForever() {
+    if (!id) return;
+    if (!window.confirm(`Permanently delete this ${noun}? This cannot be undone.`)) return;
+    deleteMutation.mutate(
+      { id, permanent: true },
+      {
+        onSuccess: () => {
+          recovery.clear();
           toast.success(`${noun} deleted`);
           invalidate("post.list");
           navigate(basePath);
@@ -323,6 +423,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   }
 
   const saving = createMutation.isPending || updateMutation.isPending;
+  const isTrashed = postQuery.data?.status === "trashed";
   const siteUrl = (siteQuery.data?.settings.siteUrl ?? "").replace(/\/$/, "");
   const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
 
@@ -512,12 +613,12 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
                       disabled={deleteMutation.isPending}
                       onClick={() => {
                         setMenuOpen(false);
-                        handleDelete();
+                        handleTrash();
                       }}
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/50"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      Delete
+                      Move to trash
                     </button>
                   </div>
                 )}
@@ -526,6 +627,26 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
           </>
         }
       />
+
+      {isTrashed && (
+        <TrashedBanner
+          noun={noun}
+          busy={restoreMutation.isPending || deleteMutation.isPending}
+          onRestore={handleRestore}
+          onDeleteForever={handleDeleteForever}
+        />
+      )}
+
+      {recovery.recoveredAt && (
+        <RecoveryBanner
+          savedAt={recovery.recoveredAt}
+          onRestore={() => {
+            const data = recovery.restore();
+            if (data) applyRecovered(data);
+          }}
+          onDiscard={recovery.discard}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
@@ -633,6 +754,19 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
               </datalist>
             </div>
           </Card>
+
+          <Card>
+            <ImageRefField label="Featured image" value={featuredImage} onChange={setFeaturedImage} />
+          </Card>
+
+          <SeoSection
+            seo={seo}
+            onChange={setSeo}
+            postTitle={title}
+            slug={slug}
+            excerpt={excerpt}
+            siteUrl={siteQuery.data?.settings.siteUrl}
+          />
 
           <Card>
             <div className="mb-2 flex items-center gap-1.5 text-base font-semibold tracking-tight">

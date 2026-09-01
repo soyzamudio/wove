@@ -10,6 +10,7 @@ import { Media } from "./pages/Media";
 import { Agents } from "./pages/Agents";
 import { Audit } from "./pages/Audit";
 import { Settings } from "./pages/Settings";
+import { Menus } from "./pages/Menus";
 import { Tools } from "./pages/Tools";
 
 export function App() {
@@ -34,7 +35,9 @@ export function App() {
         <Route path="/media" element={<Media />} />
         <Route path="/agents" element={<Agents />} />
         <Route path="/audit" element={<Audit />} />
+        <Route path="/menus" element={<Menus />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/:tab" element={<Settings />} />
         <Route path="/tools" element={<Tools />} />
       </Route>
     </Routes>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
@@ -221,11 +221,20 @@ export function AddBlockGap({ onClick, always = false }: { onClick: () => void; 
 }
 
 /** Slot used by the builder to render arbitrary canvas chrome. */
-export function CanvasSheet({ children, width }: { children: ReactNode; width: number | null }) {
+export function CanvasSheet({
+  children,
+  width,
+  style,
+}: {
+  children: ReactNode;
+  width: number | null;
+  /** Site design CSS variables, so the canvas previews the real look. */
+  style?: CSSProperties;
+}) {
   return (
     <div
       className="mx-auto bg-white shadow-sm ring-1 ring-zinc-200 transition-[max-width] dark:bg-zinc-950 dark:ring-zinc-800"
-      style={width ? { maxWidth: width } : undefined}
+      style={{ ...style, ...(width ? { maxWidth: width } : null) }}
     >
       {children}
     </div>

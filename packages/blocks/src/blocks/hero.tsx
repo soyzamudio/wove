@@ -1,5 +1,6 @@
 import type { BlockOf } from "@agentpress/sdk";
-import { resolveUrl, type RenderContext } from "../context";
+import type { RenderContext } from "../context";
+import { SIZES, imgAttrs } from "../image-attrs";
 import { Buttons } from "../ui";
 
 export function Hero({ props, ctx }: { props: BlockOf<"hero">["props"]; ctx: RenderContext }) {
@@ -9,7 +10,7 @@ export function Hero({ props, ctx }: { props: BlockOf<"hero">["props"]; ctx: Ren
   return (
     <div className={`ap-hero ap-hero--${layout}`}>
       {layout === "background" && img?.url ? (
-        <img className="ap-hero__bg" src={resolveUrl(img.url, ctx)} alt={img.alt ?? ""} loading="lazy" />
+        <img className="ap-hero__bg" {...imgAttrs(img, ctx, "100vw")} alt={img.alt ?? ""} loading="lazy" />
       ) : null}
       <div className="ap-in ap-hero__inner">
         <div className="ap-hero__text">
@@ -20,7 +21,7 @@ export function Hero({ props, ctx }: { props: BlockOf<"hero">["props"]; ctx: Ren
         </div>
         {layout !== "background" && img?.url ? (
           <div className="ap-hero__media">
-            <img src={resolveUrl(img.url, ctx)} alt={img.alt ?? ""} loading="lazy" />
+            <img {...imgAttrs(img, ctx, SIZES.hero)} alt={img.alt ?? ""} loading="lazy" />
           </div>
         ) : null}
       </div>

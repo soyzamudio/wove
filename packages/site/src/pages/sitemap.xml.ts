@@ -8,7 +8,7 @@ function xmlEscape(value: string): string {
 export const GET: APIRoute = async () => {
   const settings = await getSettings();
   const siteUrl = settings.siteUrl.replace(/\/+$/, "");
-  const items = await listAllPublished();
+  const items = (await listAllPublished()).filter((post) => !post.seo.noindex);
 
   const urls = [
     `<url><loc>${xmlEscape(siteUrl + "/")}</loc></url>`,

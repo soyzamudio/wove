@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, like, lte, or, sql } from "drizzle-orm";
 import { join } from "node:path";
 import type { Channel } from "@agentpress/sdk";
 import type { DB } from "./db";
@@ -16,6 +16,8 @@ import { DEFAULT_MAX_TOKENS } from "./ai/defaults";
 import { openSession, recordUsage } from "./ai/run";
 import { rewriteSystem } from "./ai/prompts";
 import { decodeCursor, encodeCursor, hydratePost, hydratePosts, readSettings } from "./tools/shared";
+import { readMenus } from "./tools/menus";
+import { readDesign } from "./tools/design";
 import { mediaDir, safeFilename } from "./tools/media";
 import {
   clearedCookie, createSession, createUser, destroySession, publicUser,
@@ -262,6 +264,30 @@ export function createApp(deps: AppDeps) {
       items: hydratePosts(db, rows.slice(0, limit)),
       nextCursor: rows.length > limit ? encodeCursor(offset + limit) : null,
     });
+  });
+
+  app.get("/api/public/menus", (c) => c.json(readMenus(db)));
+
+  app.get("/api/public/design", (c) => c.json(readDesign(db)));
+
+  /**
+   * Naive LIKE search over published content. Title hits rank above body hits; anything
+   * shorter than 2 characters returns nothing rather than the whole site.
+   */
+  app.get("/api/public/search", (c) => {
+    const q = (c.req.query("q") ?? "").trim();
+    const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 20) || 20, 1), 50);
+    if (q.length < 2) return c.json({ items: [] });
+    const needle = `%${q}%`;
+    const rows = db.select().from(posts)
+      .where(and(
+        publicWhere(),
+        or(like(posts.title, needle), like(posts.excerpt, needle), like(posts.content, needle))!,
+      ))
+      .orderBy(sql`case when lower(${posts.title}) like lower(${needle}) then 0 else 1 end`, desc(posts.publishedAt))
+      .limit(limit)
+      .all();
+    return c.json({ items: hydratePosts(db, rows) });
   });
 
   app.get("/api/public/posts/:slug", (c) => {

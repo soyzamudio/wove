@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BlocksDoc } from "./blocks";
+import { BlocksDoc, ImageRef, ImageVariant } from "./blocks";
 
 // ---------- primitives ----------
 export const Id = z.string().min(1);
@@ -18,7 +18,7 @@ export const Scope = z.enum([
 export type Scope = z.infer<typeof Scope>;
 
 export const Actor = z.object({
-  kind: z.enum(["user", "agent", "anon"]),
+  kind: z.enum(["user", "agent", "anon", "system"]),
   id: z.string().nullable(),
   scopes: z.array(Scope),
 });
@@ -29,7 +29,7 @@ export type Channel = z.infer<typeof Channel>;
 
 // ---------- content ----------
 export const PostType = z.enum(["post", "page"]);
-export const PostStatus = z.enum(["draft", "published", "scheduled"]);
+export const PostStatus = z.enum(["draft", "published", "scheduled", "trashed"]);
 export const PostFormat = z.enum(["markdown", "blocks"]);
 export type PostFormat = z.infer<typeof PostFormat>;
 
@@ -42,6 +42,13 @@ export const Post = z.object({
   format: PostFormat.default("markdown"),
   blocks: BlocksDoc.nullable().describe("parsed blocks document when format is 'blocks'; null otherwise"),
   excerpt: z.string().nullable(),
+  featuredImage: ImageRef.nullable().default(null),
+  seo: z.object({
+    title: z.string().nullable().default(null),
+    description: z.string().nullable().default(null),
+    ogImage: ImageRef.nullable().default(null),
+    noindex: z.boolean().default(false),
+  }).default({}),
   status: PostStatus,
   authorId: Id.nullable(),
   publishedAt: ISODate.nullable(),
@@ -60,6 +67,8 @@ export const PostCreateInput = z.object({
   format: PostFormat.optional().describe("defaults to 'blocks' when `blocks` is given, else 'markdown'"),
   blocks: BlocksDoc.optional().describe("blocks document; when given, core stores it as content and sets format='blocks'"),
   excerpt: z.string().optional(),
+  featuredImage: ImageRef.nullable().optional(),
+  seo: z.object({ title: z.string().nullable().optional(), description: z.string().nullable().optional(), ogImage: ImageRef.nullable().optional(), noindex: z.boolean().optional() }).optional(),
   status: PostStatus.default("draft"),
   publishedAt: ISODate.optional(),
   meta: z.record(z.unknown()).optional(),
@@ -72,7 +81,7 @@ export type PostUpdateInput = z.infer<typeof PostUpdateInput>;
 
 export const PostListInput = z.object({
   type: PostType.optional(),
-  status: PostStatus.optional(),
+  status: PostStatus.optional().describe("omit = everything except trashed"),
   q: z.string().optional(),
   term: z.string().optional().describe("term slug"),
   limit: z.number().int().min(1).max(100).default(20),
@@ -89,6 +98,7 @@ export type Term = z.infer<typeof Term>;
 export const Media = z.object({
   id: Id, path: z.string(), url: z.string(), mime: z.string(), size: z.number().int(),
   alt: z.string().nullable(), width: z.number().int().nullable(), height: z.number().int().nullable(),
+  variants: z.array(ImageVariant).default([]).describe("resized renditions (images only)"),
   createdAt: ISODate,
 });
 export type Media = z.infer<typeof Media>;
@@ -159,3 +169,56 @@ export type AiUsageEntry = z.infer<typeof AiUsageEntry>;
 
 export const AiTextResult = z.object({ text: z.string(), model: z.string(), usage: AiUsage });
 export type AiTextResult = z.infer<typeof AiTextResult>;
+
+// ---------- menus ----------
+export const MenuItem: z.ZodType<{ id: string; label: string; href: string; children?: MenuItem[] }> = z.lazy(() =>
+  z.object({ id: Id, label: z.string().min(1), href: z.string().min(1), children: z.array(MenuItem).max(20).optional() }),
+);
+export type MenuItem = { id: string; label: string; href: string; children?: MenuItem[] };
+export const MenuLocation = z.string().regex(/^[a-z0-9-]+$/).describe("'header', 'footer', or a custom location");
+export const Menu = z.object({ location: MenuLocation, name: z.string(), items: z.array(MenuItem).max(50) });
+export type Menu = z.infer<typeof Menu>;
+
+// ---------- design ----------
+export const FontChoice = z.enum(["system", "inter", "geist", "source-serif", "playfair", "ibm-plex-sans", "jetbrains-mono", "lora", "space-grotesk"]);
+export const Design = z.object({
+  logo: ImageRef.nullable().default(null),
+  colors: z.object({
+    accent: z.string().default("#2563eb"),
+    background: z.string().default("#ffffff"),
+    foreground: z.string().default("#18181b"),
+    darkBackground: z.string().default("#0a0a0a"),
+    darkForeground: z.string().default("#f4f4f5"),
+  }).default({}),
+  fonts: z.object({ heading: FontChoice.default("system"), body: FontChoice.default("system") }).default({}),
+  radius: z.number().int().min(0).max(32).default(12),
+  customCss: z.string().max(50_000).default(""),
+});
+export type Design = z.infer<typeof Design>;
+
+/** Font choices → Google Fonts family (null = no download) + CSS stack. Shared by admin preview and site. */
+export const FontMeta: Record<z.infer<typeof FontChoice>, { google: string | null; stack: string }> = {
+  system: { google: null, stack: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
+  inter: { google: "Inter:wght@400;500;600;700", stack: '"Inter", system-ui, sans-serif' },
+  geist: { google: "Geist:wght@400;500;600;700", stack: '"Geist", system-ui, sans-serif' },
+  "source-serif": { google: "Source+Serif+4:wght@400;600;700", stack: '"Source Serif 4", Georgia, serif' },
+  playfair: { google: "Playfair+Display:wght@400;600;700", stack: '"Playfair Display", Georgia, serif' },
+  "ibm-plex-sans": { google: "IBM+Plex+Sans:wght@400;500;600;700", stack: '"IBM Plex Sans", system-ui, sans-serif' },
+  "jetbrains-mono": { google: "JetBrains+Mono:wght@400;600", stack: '"JetBrains Mono", ui-monospace, monospace' },
+  lora: { google: "Lora:wght@400;600;700", stack: '"Lora", Georgia, serif' },
+  "space-grotesk": { google: "Space+Grotesk:wght@400;500;600;700", stack: '"Space Grotesk", system-ui, sans-serif' },
+};
+
+/** Build the CSS custom properties the blocks renderer and site consume from a Design. */
+export function designToCssVars(d: Design): Record<string, string> {
+  return {
+    "--ap-accent": d.colors.accent,
+    "--ap-bg": d.colors.background,
+    "--ap-fg": d.colors.foreground,
+    "--ap-dark-bg": d.colors.darkBackground,
+    "--ap-dark-fg": d.colors.darkForeground,
+    "--ap-font": FontMeta[d.fonts.body].stack,
+    "--ap-font-heading": FontMeta[d.fonts.heading].stack,
+    "--ap-radius": `${d.radius}px`,
+  };
+}

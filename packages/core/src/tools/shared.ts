@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { BlocksDoc, Post } from "@agentpress/sdk";
-import { parseBlocksDoc } from "@agentpress/sdk";
+import type { BlocksDoc, ImageRef, Post } from "@agentpress/sdk";
+import { parseBlocksDoc, Post as PostSchema } from "@agentpress/sdk";
 import type { DB } from "../db";
 import { posts, postTerms, terms as termsTable, settings as settingsTable } from "../db/schema";
 import type { PostRow } from "../db/schema";
@@ -52,6 +52,21 @@ export function safeBlocks(row: { id: string; content: string }): BlocksDoc {
   }
 }
 
+/** `featuredImage` and `seo` are stored as loose JSON; reads normalise them through the SDK schema. */
+const featuredImageSchema = PostSchema.shape.featuredImage;
+const seoSchema = PostSchema.shape.seo;
+
+export function parseFeaturedImage(value: unknown): ImageRef | null {
+  if (value == null) return null;
+  const parsed = featuredImageSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+export function parseSeo(value: unknown): Post["seo"] {
+  const parsed = seoSchema.safeParse(value ?? {});
+  return parsed.success ? parsed.data : seoSchema.parse({});
+}
+
 export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
   return {
     id: row.id,
@@ -62,6 +77,8 @@ export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
     format: row.format,
     blocks: row.format === "blocks" ? safeBlocks(row) : null,
     excerpt: row.excerpt ?? null,
+    featuredImage: parseFeaturedImage(row.featuredImage),
+    seo: parseSeo(row.seo),
     status: row.status,
     authorId: row.authorId ?? null,
     publishedAt: row.publishedAt ?? null,

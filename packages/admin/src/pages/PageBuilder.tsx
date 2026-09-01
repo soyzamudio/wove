@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
@@ -29,13 +29,25 @@ import {
   Undo2,
 } from "lucide-react";
 import { BlockMeta, newBlock, type BlocksDoc } from "@agentpress/blocks";
-import type { Post } from "@agentpress/sdk";
+import { designToCssVars, type ImageRef, type Post } from "@agentpress/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useBuilderState } from "../hooks/useBuilderState";
+import { useDraftRecovery } from "../hooks/useDraftRecovery";
 import { emptyBuilderDoc, type BuilderBlock } from "../lib/builderState";
 import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
+import { draftKey } from "../lib/draftRecovery";
 import { useToast } from "../context/ToastContext";
+import {
+  EMPTY_SEO,
+  ImageRefField,
+  RecoveryBanner,
+  SeoSection,
+  TrashedBanner,
+  seoFromPost,
+  seoToInput,
+  type SeoState,
+} from "../components/editor";
 import { AddBlockPicker } from "../components/AddBlockPicker";
 import { AddBlockGap, BlockFrame, CanvasSheet } from "../components/BlockFrame";
 import { PropsForm } from "../components/PropsForm";
@@ -102,6 +114,7 @@ export function PageBuilder() {
   const postQuery = useToolQuery("post.get", { id: id ?? "" }, { enabled: !isCreate });
   const siteQuery = useToolQuery("site.info", {});
   const categoriesQuery = useToolQuery("term.list", { taxonomy: "category" });
+  const designQuery = useToolQuery("design.get", {});
 
   const builder = useBuilderState(emptyBuilderDoc());
 
@@ -113,6 +126,8 @@ export function PageBuilder() {
   const [excerpt, setExcerpt] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [category, setCategory] = useState("");
+  const [featuredImage, setFeaturedImage] = useState<ImageRef | null>(null);
+  const [seo, setSeo] = useState<SeoState>(EMPTY_SEO);
   const [format, setFormat] = useState<"markdown" | "blocks">("blocks");
   const [markdownContent, setMarkdownContent] = useState("");
   const [metaDirty, setMetaDirty] = useState(false);
@@ -137,11 +152,14 @@ export function PageBuilder() {
     setTitle(post.title);
     setSlug(post.slug);
     setSlugTouched(true);
-    setStatus(post.status);
+    // "trashed" isn't an option in the Status select; the trash banner handles it.
+    setStatus(post.status === "trashed" ? "draft" : post.status);
     setPublishedAtLocal(isoToLocalInput(post.publishedAt));
     setExcerpt(post.excerpt ?? "");
     setTagsInput(post.terms.filter((t) => t.taxonomy === "tag").map((t) => t.name).join(", "));
     setCategory(post.terms.find((t) => t.taxonomy === "category")?.name ?? "");
+    setFeaturedImage(post.featuredImage ?? null);
+    setSeo(seoFromPost(post));
     setFormat(post.format);
     setMarkdownContent(post.format === "markdown" ? (post.content ?? "") : "");
     builder.reset(post.blocks ?? emptyBuilderDoc());
@@ -173,11 +191,50 @@ export function PageBuilder() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
+  // ---- autosave / recovery -------------------------------------------------
+  const formState = useMemo(
+    () => ({
+      title,
+      slug,
+      status,
+      publishedAtLocal,
+      excerpt,
+      tagsInput,
+      category,
+      featuredImage,
+      seo,
+      doc: builder.doc,
+    }),
+    [title, slug, status, publishedAtLocal, excerpt, tagsInput, category, featuredImage, seo, builder.doc]
+  );
+  type FormState = typeof formState;
+
+  const recovery = useDraftRecovery<FormState>(draftKey(id, "page"), formState, {
+    enabled: isCreate || loadedId !== null,
+    serverUpdatedAt: postQuery.data?.updatedAt ?? null,
+  });
+
+  function applyRecovered(data: FormState) {
+    setTitle(data.title);
+    setSlug(data.slug);
+    setSlugTouched(true);
+    setStatus(data.status);
+    setPublishedAtLocal(data.publishedAtLocal);
+    setExcerpt(data.excerpt);
+    setTagsInput(data.tagsInput);
+    setCategory(data.category);
+    setFeaturedImage(data.featuredImage ?? null);
+    setSeo(data.seo ?? EMPTY_SEO);
+    if (data.doc?.blocks) builder.replaceAll(data.doc.blocks as BuilderBlock[]);
+    setMetaDirty(true);
+  }
+
   // ---- mutations ----------------------------------------------------------
   const createMutation = useToolMutation("post.create");
   const updateMutation = useToolMutation("post.update");
   const publishMutation = useToolMutation("post.publish");
   const deleteMutation = useToolMutation("post.delete");
+  const restoreMutation = useToolMutation("post.restore");
   const revisionsQuery = useToolQuery("post.revisions", { id: id ?? "" }, { enabled: false });
 
   const generatePage = useToolMutation("ai.generatePage", {
@@ -229,6 +286,8 @@ export function PageBuilder() {
       status,
       publishedAt,
       terms: buildTerms(),
+      featuredImage,
+      seo: seoToInput(seo),
       blocks: builder.doc as BlocksDoc,
     };
     if (isCreate) {
@@ -236,6 +295,7 @@ export function PageBuilder() {
         { type: "page", ...common },
         {
           onSuccess: (created: Post) => {
+            recovery.clear();
             toast.success("page created");
             builder.markSaved();
             setMetaDirty(false);
@@ -251,6 +311,7 @@ export function PageBuilder() {
         { id: id!, ...common },
         {
           onSuccess: () => {
+            recovery.clear();
             toast.success("page saved");
             builder.markSaved();
             setMetaDirty(false);
@@ -271,7 +332,7 @@ export function PageBuilder() {
       {
         onSuccess: (updated: Post) => {
           toast.success("page published");
-          setStatus(updated.status);
+          setStatus(updated.status === "trashed" ? "draft" : updated.status);
           setPublishedAtLocal(isoToLocalInput(updated.publishedAt));
           invalidate("post.list");
           invalidate("post.get");
@@ -281,13 +342,62 @@ export function PageBuilder() {
     );
   }
 
-  function handleDelete() {
+  /** Delete now means "move to trash", with a one-click undo. */
+  function handleTrash() {
     if (!id) return;
-    if (!window.confirm("Delete this page?")) return;
     deleteMutation.mutate(
       { id },
       {
         onSuccess: () => {
+          recovery.clear();
+          invalidate("post.list");
+          invalidate("post.get");
+          toast.success("Moved to trash", {
+            label: "Undo",
+            onClick: () =>
+              restoreMutation.mutate(
+                { id },
+                {
+                  onSuccess: () => {
+                    toast.success("page restored");
+                    invalidate("post.list");
+                    invalidate("post.get");
+                  },
+                  onError: (err) => toast.error(errorMessage(err)),
+                }
+              ),
+          });
+          navigate("/pages");
+        },
+        onError: (err) => toast.error(errorMessage(err)),
+      }
+    );
+  }
+
+  function handleRestore() {
+    if (!id) return;
+    restoreMutation.mutate(
+      { id },
+      {
+        onSuccess: (updated: Post) => {
+          toast.success("page restored");
+          setStatus(updated.status === "trashed" ? "draft" : updated.status);
+          invalidate("post.list");
+          invalidate("post.get");
+        },
+        onError: (err) => toast.error(errorMessage(err)),
+      }
+    );
+  }
+
+  function handleDeleteForever() {
+    if (!id) return;
+    if (!window.confirm("Permanently delete this page? This cannot be undone.")) return;
+    deleteMutation.mutate(
+      { id, permanent: true },
+      {
+        onSuccess: () => {
+          recovery.clear();
           toast.success("page deleted");
           invalidate("post.list");
           navigate("/pages");
@@ -329,6 +439,11 @@ export function PageBuilder() {
   const siteUrl = (siteQuery.data?.settings.siteUrl ?? "").replace(/\/$/, "");
   const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
   const saving = createMutation.isPending || updateMutation.isPending;
+  const isTrashed = postQuery.data?.status === "trashed";
+  // Preview the real site look on the canvas.
+  const canvasVars = designQuery.data
+    ? (designToCssVars(designQuery.data) as unknown as CSSProperties)
+    : undefined;
   const sortableIds = useMemo(() => builder.blocks.map((b) => b.id), [builder.blocks]);
 
   if (!isCreate && postQuery.isLoading) return <Spinner />;
@@ -431,6 +546,29 @@ export function PageBuilder() {
           </datalist>
         </div>
       </Card>
+
+      <Card>
+        <ImageRefField
+          label="Featured image"
+          value={featuredImage}
+          onChange={(next) => {
+            setFeaturedImage(next);
+            setMetaDirty(true);
+          }}
+        />
+      </Card>
+
+      <SeoSection
+        seo={seo}
+        onChange={(next) => {
+          setSeo(next);
+          setMetaDirty(true);
+        }}
+        postTitle={title}
+        slug={slug}
+        excerpt={excerpt}
+        siteUrl={siteQuery.data?.settings.siteUrl}
+      />
 
       <Card>
         <div className="mb-2 flex items-center gap-1.5 text-base font-semibold tracking-tight">
@@ -670,12 +808,12 @@ export function PageBuilder() {
                       disabled={deleteMutation.isPending}
                       onClick={() => {
                         setMenuOpen(false);
-                        handleDelete();
+                        handleTrash();
                       }}
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/50"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      Delete
+                      Move to trash
                     </button>
                   </div>
                 )}
@@ -684,6 +822,26 @@ export function PageBuilder() {
           </>
         }
       />
+
+      {isTrashed && (
+        <TrashedBanner
+          noun="page"
+          busy={restoreMutation.isPending || deleteMutation.isPending}
+          onRestore={handleRestore}
+          onDeleteForever={handleDeleteForever}
+        />
+      )}
+
+      {recovery.recoveredAt && (
+        <RecoveryBanner
+          savedAt={recovery.recoveredAt}
+          onRestore={() => {
+            const data = recovery.restore();
+            if (data) applyRecovered(data);
+          }}
+          onDiscard={recovery.discard}
+        />
+      )}
 
       {format === "markdown" && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/50 dark:text-amber-200">
@@ -702,7 +860,7 @@ export function PageBuilder() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Canvas */}
         <div className="ap-scroll min-w-0 overflow-y-auto rounded-xl bg-zinc-100 p-4 dark:bg-zinc-950/60 lg:max-h-[calc(100vh-9rem)]">
-          <CanvasSheet width={preview === "mobile" ? MOBILE_WIDTH : null}>
+          <CanvasSheet width={preview === "mobile" ? MOBILE_WIDTH : null} style={canvasVars}>
             {builder.blocks.length === 0 ? (
               emptyCanvas
             ) : (

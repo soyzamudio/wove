@@ -3,6 +3,7 @@ export { resolveUrl } from "./context";
 export type { RenderContext } from "./context";
 export { renderMarkdown } from "./markdown";
 export { resolveIcon, Icon } from "./icon";
+export { imgAttrs, SIZES } from "./image-attrs";
 export { BLOCK_TYPES, blockDefaults, newBlock, newId } from "./defaults";
 export { sampleDoc } from "./fixtures";
 export { BlockMeta } from "@agentpress/sdk";
