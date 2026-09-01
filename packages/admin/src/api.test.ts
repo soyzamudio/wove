@@ -53,3 +53,19 @@ describe("sdk client wired through channelFetch", () => {
     expect(String(calls[0].input)).toBe("http://localhost:4000/api/tools/site.info");
   });
 });
+
+describe("fetchToolCatalog", () => {
+  test("unwraps core's { tools: [...] } envelope", async () => {
+    const { fetchToolCatalog } = await import("./api");
+    const orig = globalThis.fetch;
+    globalThis.fetch = mock(async () =>
+      new Response(JSON.stringify({ tools: [{ name: "post.list", description: "d", inputSchema: {}, scopes: ["content:read"] }] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      })) as unknown as typeof fetch;
+    try {
+      const tools = await fetchToolCatalog();
+      expect(tools).toHaveLength(1);
+      expect(tools[0].name).toBe("post.list");
+    } finally { globalThis.fetch = orig; }
+  });
+});

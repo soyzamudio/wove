@@ -74,7 +74,9 @@ export interface ToolCatalogEntry {
 export async function fetchToolCatalog(): Promise<ToolCatalogEntry[]> {
   const res = await channelFetch(`${API_URL}/api/tools`, { method: "GET", credentials: "include" });
   if (!res.ok) throw new AgentpressError(res.status, "error", res.statusText);
-  return (await res.json()) as ToolCatalogEntry[];
+  // core wraps the list: { tools: [...] }
+  const body = (await res.json()) as { tools: ToolCatalogEntry[] };
+  return body.tools;
 }
 
 // ---------------------------------------------------------------------------
