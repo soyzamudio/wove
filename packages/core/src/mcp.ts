@@ -21,7 +21,7 @@ export interface McpDeps {
  * `Authorization: Bearer wove_...` header. Channel is always `mcp`.
  */
 export function createMcpHandler(deps: McpDeps) {
-  return async function handleMcp(req: Request): Promise<Response> {
+  return async function handleMcp(req: Request, ip?: string): Promise<Response> {
     const actor = deps.resolve(req);
 
     const server = new Server(
@@ -41,7 +41,7 @@ export function createMcpHandler(deps: McpDeps) {
       const result = await dispatch(
         request.params.name,
         request.params.arguments ?? {},
-        { actor, channel: "mcp", db: deps.db, hooks: deps.hooks },
+        { actor, channel: "mcp", db: deps.db, hooks: deps.hooks, ip },
         deps.registry,
       );
       if (!result.ok) {

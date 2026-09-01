@@ -19,6 +19,15 @@ export function defaultDbPath(): string {
  * TODO(postgres): swap for `drizzle-orm/node-postgres` behind the same `DB` type
  * when `WOVE_DATABASE_URL` starts with `postgres://`. Not implemented in v1.
  */
+/** Close the underlying SQLite handle. Safe to call more than once. */
+export function closeDb(db: DB): void {
+  try {
+    (db as unknown as { $client?: { close?: () => void } }).$client?.close?.();
+  } catch (e) {
+    console.error("[db] close", (e as Error).message);
+  }
+}
+
 export function openDb(path: string = defaultDbPath()): DB {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const sqlite = new Database(path, { create: true });

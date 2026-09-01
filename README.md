@@ -144,16 +144,19 @@ apps/cloud        hosted edition — design docs only; open-core (ops + tenancy,
 
 **Adding a feature = adding a tool.** Declare it in `ToolCatalog`, implement it in `packages/core/src/tools/`, and it is available over REST, MCP, OpenAPI, and the audit log. Then wire the UI. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and the [roadmap](docs/ROADMAP.md).
 
-## Configuration
+## Deploy
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `WOVE_SECRET` | generated to `data/secret` | encrypts stored AI keys |
-| `WOVE_AI_<PROVIDER>_KEY` | — | server-wide AI key (`ANTHROPIC`, `OPENAI`, `GOOGLE`, `XAI`, `OPENAI_COMPATIBLE`); a key set in the admin takes precedence |
-| `WOVE_STORAGE` | `local` | `s3` with `WOVE_S3_BUCKET/REGION/ENDPOINT/ACCESS_KEY_ID/SECRET_ACCESS_KEY/PUBLIC_URL` |
-| `WOVE_MAX_UPLOAD_MB` | `25` | upload cap |
-| `WOVE_SCHEDULER` | `1` | set `0` to disable scheduled publishing |
-| `WOVE_AUDIT_READS` | `0` | set `1` to audit successful reads too |
+Wove ships as a single container — core, the admin (under `/admin`), and the
+public site all run behind one port:
+
+```sh
+export WOVE_SECRET=$(openssl rand -hex 32) WOVE_SITE_URL=https://your-domain.example
+docker compose up -d
+```
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the full guide — Docker, a
+VPS without Docker, reverse proxy/TLS, S3 media, and every environment
+variable.
 
 ## Status
 

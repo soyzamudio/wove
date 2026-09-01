@@ -1,6 +1,6 @@
 ---
 import type { Post } from "@wove/sdk";
-import { API_URL } from "../../lib/env";
+import { PUBLIC_URL } from "../../lib/env";
 import { resolveUrl } from "../../lib/seo";
 
 interface Props {
@@ -13,7 +13,7 @@ const dateLabel = post.publishedAt
   ? new Date(post.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
   : null;
 
-const thumbUrl = post.featuredImage ? resolveUrl(post.featuredImage.url, API_URL) : null;
+const thumbUrl = post.featuredImage ? resolveUrl(post.featuredImage.url, PUBLIC_URL) : null;
 ---
 
 <li class="post-card">

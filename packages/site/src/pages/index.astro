@@ -5,17 +5,17 @@ import { BlockRenderer } from "@wove/blocks";
 import { getPostBySlug, getSettings, listPosts } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
 import { resolveSeo, resolveUrl } from "../lib/seo";
-import { API_URL } from "../lib/env";
+import { PUBLIC_URL } from "../lib/env";
 
 const settings = await getSettings();
 const homePost = await getPostBySlug("home");
 const home = homePost && homePost.status === "published" ? homePost : null;
 const isBlocks = home ? home.format === "blocks" && Boolean(home.blocks) : false;
-const seo = home ? resolveSeo(home, API_URL) : null;
+const seo = home ? resolveSeo(home, PUBLIC_URL) : null;
 const featuredImage = home?.featuredImage ?? null;
-const featuredImageUrl = featuredImage ? resolveUrl(featuredImage.url, API_URL) : null;
+const featuredImageUrl = featuredImage ? resolveUrl(featuredImage.url, PUBLIC_URL) : null;
 const featuredSrcset = featuredImage?.variants?.length
-  ? featuredImage.variants.map((v) => `${resolveUrl(v.url, API_URL)} ${v.width}w`).join(", ")
+  ? featuredImage.variants.map((v) => `${resolveUrl(v.url, PUBLIC_URL)} ${v.width}w`).join(", ")
   : undefined;
 
 let items: Awaited<ReturnType<typeof listPosts>>["items"] = [];
@@ -25,7 +25,7 @@ let html = "";
 
 if (home) {
   if (!isBlocks) {
-    html = renderMarkdown(home.content, API_URL);
+    html = renderMarkdown(home.content, PUBLIC_URL);
   }
 } else {
   cursor = Astro.url.searchParams.get("cursor") ?? undefined;
@@ -46,7 +46,7 @@ if (home) {
 >
   {home ? (
     isBlocks ? (
-      <BlockRenderer doc={home.blocks!} ctx={{ mediaBase: API_URL }} />
+      <BlockRenderer doc={home.blocks!} ctx={{ mediaBase: PUBLIC_URL }} />
     ) : (
       <article>
         {featuredImageUrl && (

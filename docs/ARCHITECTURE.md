@@ -68,3 +68,19 @@ Posts are Markdown; **pages are block documents** (`post.format = "blocks"`, `po
 **Editing**: the whole document is replaced via `post.update { blocks }` — atomic, easy to audit and revise. `block.catalog` exposes the block types + JSON schemas so agents can discover them; `block.validate` normalizes a doc.
 
 **AI**: `ai.generatePage` (prompt → title + blocks, optional save as draft page), `ai.generateBlock` (description → one block, type chosen or forced), `ai.editBlock` (block + instruction → block). Outputs are validated against the zod schema with one retry that feeds back the validation errors. Image URLs are never invented by the model; users attach media in the builder.
+
+## Site chat (in-admin agent)
+
+A conversational agent inside the admin that operates the site through the same tool registry — "create a pricing page, link it in the nav, and publish it Monday".
+
+**Loop** (`packages/core/src/chat/`): the configured AI provider is called with tool definitions derived from the registry (the actor's scopes filter the list; `html` block and destructive `permanent` deletes are excluded). Provider adapters gain a `chat()` method that supports native tool calling (Anthropic `tools`, OpenAI `tools`, Google function declarations). The server runs the agentic loop:
+
+- **Reads execute immediately** (`*.list`, `*.get`, `block.catalog`, `site.info`, …) and their results go back to the model.
+- **Mutations are never executed by the model.** They are collected into a **plan** — an ordered list of proposed tool calls with arguments — that the loop returns to the user. The user approves all or some; `chat.apply` dispatches them in order (channel `chat`, actor = the human, audited), then the results are fed back so the model can confirm or continue.
+- Dry-run helpers make plans reviewable: for `post.update` the plan carries a before/after diff; `ai.generatePage` runs at plan time (it's a read from the site's point of view) so the user reviews the *actual* page before `post.create` is applied.
+
+**Persistence**: `chat_threads { id, title, actorId, createdAt, updatedAt }`, `chat_messages { id, threadId, role: user|assistant|tool, content (text or JSON parts), plan (json|null), ts }`. Threads are per user.
+
+**Surfaces**: `POST /api/chat/stream` (SSE: `token`, `tool_call`, `tool_result`, `plan`, `done`, `error`), tools `chat.threads`, `chat.get`, `chat.apply { threadId, messageId, approve: callIds[] }`, `chat.discard`, `chat.delete`. Channel enum gains `chat`.
+
+**Admin**: a slide-over panel available on every page (⌘J): streaming replies, tool-call cards (reads collapsed, mutations as approval cards with diff/preview), Approve all / individual, and links to what was created. Usage is metered like every other AI call.

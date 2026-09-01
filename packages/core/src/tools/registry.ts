@@ -4,12 +4,18 @@ import type { DB } from "../db";
 import { auditLog } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import type { Hooks } from "../hooks";
+import { AI_RATE_LIMITED_TOOLS, actorKey, aiLimiter, anonToolLimiter, consume } from "../ratelimit";
 
 export interface Ctx {
   actor: Actor;
   channel: Channel;
   db: DB;
   hooks: Hooks;
+  /**
+   * Client IP, when the transport could determine one. Used to key rate limits for
+   * anonymous callers; absent in-process (tests, hooks) which are never limited by IP.
+   */
+  ip?: string;
 }
 
 export interface Tool<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -29,7 +35,9 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return { mutation: t.mutation ?? true, ...t } as Tool<I, O>;
 }
 
-export type ErrorCode = "validation_error" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "internal_error";
+export type ErrorCode =
+  | "validation_error" | "unauthenticated" | "forbidden" | "not_found"
+  | "conflict" | "rate_limited" | "internal_error";
 
 const STATUS: Record<ErrorCode, number> = {
   validation_error: 400,
@@ -37,6 +45,7 @@ const STATUS: Record<ErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  rate_limited: 429,
   internal_error: 500,
 };
 
@@ -53,17 +62,25 @@ export class ToolError extends Error {
 export const notFound = (m = "Not found", d?: unknown) => new ToolError("not_found", m, d);
 export const badRequest = (m: string, d?: unknown) => new ToolError("validation_error", m, d);
 export const conflict = (m: string, d?: unknown) => new ToolError("conflict", m, d);
+export const rateLimited = (m: string, retryAfter: number) => new ToolError("rate_limited", m, { retryAfter });
 
 // ---------------------------------------------------------------- registry
 
 export class Registry {
   #tools = new Map<string, Tool<any, any>>();
+  #version = 0;
 
   register(tool: Tool<any, any>, opts: { overwrite?: boolean } = {}): void {
     if (this.#tools.has(tool.name) && !opts.overwrite) {
       throw new Error(`Tool "${tool.name}" is already registered`);
     }
     this.#tools.set(tool.name, tool);
+    this.#version++;
+  }
+
+  /** Bumped on every `register`; derived artefacts (the OpenAPI document) cache against it. */
+  get version(): number {
+    return this.#version;
   }
 
   get(name: string): Tool<any, any> | undefined {
@@ -153,6 +170,26 @@ export interface DispatchFailure {
   ok: false;
   status: number;
   error: { code: ErrorCode; message: string; details?: unknown };
+  /** Seconds, set only on `rate_limited` so the transport can emit `Retry-After`. */
+  retryAfter?: number;
+}
+
+/**
+ * Rate limits live in `dispatch`, not in the HTTP layer, so REST and MCP share one budget
+ * — an agent cannot dodge the AI limit by switching transports. In-process calls (no
+ * `ctx.ip`, e.g. tests and hooks) are only limited when the actor is identifiable.
+ */
+function rateLimitFor(ctx: Ctx, name: string): { retryAfter: number } | null {
+  const ip = ctx.ip;
+  if (AI_RATE_LIMITED_TOOLS.has(name)) {
+    const ai = consume(aiLimiter, `ai:${actorKey(ctx.actor, ip ?? "unknown")}`);
+    if (ai.limited) return { retryAfter: ai.retryAfter };
+  }
+  if (ctx.actor.kind === "anon" && ip) {
+    const anon = consume(anonToolLimiter, `tool:${ip}`);
+    if (anon.limited) return { retryAfter: anon.retryAfter };
+  }
+  return null;
 }
 
 export async function dispatch(
@@ -171,6 +208,14 @@ export async function dispatch(
   const audit = (ok: boolean, error: string | null, input: unknown) => {
     if (tool.mutation || !ok || AUDIT_READS) writeAudit(ctx, name, input, ok, error);
   };
+
+  // 0. rate limit (before validation, so a flood of malformed input costs nothing)
+  const limited = rateLimitFor(ctx, name);
+  if (limited) {
+    const err = rateLimited(`Rate limit exceeded for "${name}"`, limited.retryAfter);
+    audit(false, err.message, rawInput);
+    return { ...fail(err), retryAfter: limited.retryAfter };
+  }
 
   // 1. validate input
   const parsed = tool.input.safeParse(rawInput ?? {});

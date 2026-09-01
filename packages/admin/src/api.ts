@@ -1,7 +1,35 @@
 import { createClient, WoveError, type ImportJob, type ImportOptions, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@wove/sdk";
 import { useMutation, useQuery, useQueryClient, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
 
-export const API_URL: string = (import.meta as any).env?.VITE_API_URL ?? "http://localhost:4000";
+/**
+ * Resolve the API base URL. Pure function so it's directly unit-testable
+ * without depending on Vite's `import.meta.env`.
+ *
+ * - `VITE_API_URL` always wins when set (dev override, or an explicit prod
+ *   deployment that puts the API on a different origin).
+ * - In a production build with no override, default to the same origin
+ *   (empty string prefix) — the admin is served from core itself at `/admin`
+ *   in the single-container deployment, so relative `fetch("/api/...")`
+ *   calls just work.
+ * - In dev, default to the local core dev server.
+ */
+export function resolveApiUrl(env: { VITE_API_URL?: string; PROD?: boolean }): string {
+  if (env.VITE_API_URL) return env.VITE_API_URL;
+  if (env.PROD) return "";
+  return "http://localhost:4000";
+}
+
+export const API_URL: string = resolveApiUrl((import.meta as any).env ?? {});
+
+/**
+ * Resolve an *absolute* origin for the API — needed anywhere a URL is copied
+ * out of the app (e.g. an MCP client config) rather than just used as a
+ * fetch base, since a same-origin empty-string API_URL isn't valid outside
+ * the browser. Falls back to the page's own origin when API_URL is relative.
+ */
+export function resolveApiOrigin(apiUrl: string, locationOrigin: string | undefined): string {
+  return apiUrl || locationOrigin || "http://localhost:4000";
+}
 
 /** Wraps global fetch to always send the `x-wove-channel: ui` header (per architecture: every
  * client of the tool API identifies its channel). Cookies are included by the sdk client itself. */

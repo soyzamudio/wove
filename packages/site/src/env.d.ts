@@ -3,6 +3,7 @@
 
 interface ImportMetaEnv {
   readonly WOVE_API_URL?: string;
+  readonly WOVE_PUBLIC_URL?: string;
   readonly MOCK?: string;
 }
 

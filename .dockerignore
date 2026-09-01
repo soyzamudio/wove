@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/data
+**/.astro
+**/*.db
+**/*.db-*
+.git
+.env
+.DS_Store
+docs/screenshots

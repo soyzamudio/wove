@@ -1,6 +1,36 @@
 import { describe, expect, test, mock } from "bun:test";
 import { createClient } from "@wove/sdk";
-import { channelFetch, parseSseBuffer, streamAi } from "./api";
+import { channelFetch, parseSseBuffer, resolveApiOrigin, resolveApiUrl, streamAi } from "./api";
+
+describe("resolveApiOrigin", () => {
+  test("uses the absolute API_URL when set", () => {
+    expect(resolveApiOrigin("http://localhost:4000", "http://localhost:5173")).toBe("http://localhost:4000");
+  });
+
+  test("falls back to the page origin when API_URL is same-origin (empty)", () => {
+    expect(resolveApiOrigin("", "https://blog.example.com")).toBe("https://blog.example.com");
+  });
+
+  test("falls back to the dev core address when neither is available", () => {
+    expect(resolveApiOrigin("", undefined)).toBe("http://localhost:4000");
+  });
+});
+
+describe("resolveApiUrl", () => {
+  test("VITE_API_URL always wins, in dev or prod", () => {
+    expect(resolveApiUrl({ VITE_API_URL: "https://api.example.com" })).toBe("https://api.example.com");
+    expect(resolveApiUrl({ VITE_API_URL: "https://api.example.com", PROD: true })).toBe("https://api.example.com");
+  });
+
+  test("defaults to same-origin (empty prefix) in a production build with no override", () => {
+    expect(resolveApiUrl({ PROD: true })).toBe("");
+  });
+
+  test("defaults to the local core dev server outside production", () => {
+    expect(resolveApiUrl({})).toBe("http://localhost:4000");
+    expect(resolveApiUrl({ PROD: false })).toBe("http://localhost:4000");
+  });
+});
 
 describe("channelFetch", () => {
   test("adds x-wove-channel: ui header while preserving other headers", async () => {

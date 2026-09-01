@@ -1,0 +1,26 @@
+# Example fly.io config. Copy to your own app dir, set `app`, and run
+# `fly deploy` after `fly volumes create wove_data --size 1`.
+app = "your-wove-app"
+primary_region = "iad"
+
+[build]
+
+[env]
+  WOVE_ENV = "production"
+  PORT = "4000"
+
+[[mounts]]
+  source = "wove_data"
+  destination = "/app/packages/core/data"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"

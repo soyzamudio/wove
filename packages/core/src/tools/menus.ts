@@ -12,8 +12,8 @@ const D = ToolDescriptions;
  * On the wire an item's `id` is optional — editors add rows without one and core assigns
  * it. Everything else is the SDK contract verbatim.
  */
-type LooseMenuItemT = { id?: string; label: string; href: string; children?: LooseMenuItemT[] };
-const LooseMenuItem: z.ZodType<LooseMenuItemT> = z.lazy(() =>
+export type LooseMenuItemT = { id?: string; label: string; href: string; children?: LooseMenuItemT[] };
+export const LooseMenuItem: z.ZodType<LooseMenuItemT> = z.lazy(() =>
   z.object({
     id: z.string().optional(),
     label: z.string().min(1),

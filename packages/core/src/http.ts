@@ -26,30 +26,84 @@ import {
 import { buildOpenApi, jsonSchemaFor } from "./openapi";
 import { createMcpHandler } from "./mcp";
 import { VERSION } from "./version";
+import { adminDist, corsOrigins, isProduction, mode, siteUpstream, DEV_ORIGINS, type Env } from "./env";
+import { createAdminServer, type AdminServer } from "./static";
+import { isReservedPath, proxyRequest } from "./proxy";
+import { actorKey, authLimiter, aiLimiter, clientIp, consume, RATE_LIMITED_MESSAGE } from "./ratelimit";
 
-export const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4321"];
+/** Origins that work with no configuration at all (the two dev servers). */
+export const ALLOWED_ORIGINS = [...DEV_ORIGINS];
+
+/**
+ * Conservative policy for the admin only — the public site is proxied and keeps whatever
+ * policy it sets for itself. `style-src` allows inline because Vite injects a small style
+ * element for CSS-in-JS/HMR-free builds, and Google Fonts is allowed because the admin
+ * links its typeface from there. The built entry is an external module script
+ * (`/admin/assets/index-*.js`), so `script-src 'self'` is enough — no 'unsafe-inline'.
+ */
+export const ADMIN_CSP = [
+  "default-src 'self'",
+  "img-src 'self' data: blob: https:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "connect-src 'self'",
+  "script-src 'self'",
+].join("; ");
 
 export interface AppDeps {
   db: DB;
   hooks?: Hooks;
   registry?: Registry;
   baseUrl?: string;
+  /** Environment bag; defaults to `process.env`. Injected by tests. */
+  env?: Env;
 }
 
 const err = (code: string, message: string, details?: unknown) => ({ code, message, details });
+
+const isAdminPath = (p: string) => p === "/admin" || p.startsWith("/admin/");
 
 export function createApp(deps: AppDeps) {
   const db = deps.db;
   const hooks = deps.hooks ?? defaultHooks;
   const registry = deps.registry ?? defaultRegistry;
   const baseUrl = deps.baseUrl ?? "http://localhost:4000";
+  const env = deps.env ?? process.env;
+  const production = isProduction(env);
+  const upstream = siteUpstream(env);
+  const origins = corsOrigins(env);
+  const admin: AdminServer | null = production ? createAdminServer(adminDist(env)) : null;
 
   const app = new Hono();
+
+  /** IP used for rate-limit keys and `x-forwarded-for`; see `clientIp` for the trust rules. */
+  const ipOf = (c: { req: { raw: Request }; env: unknown }) => clientIp(c.req.raw, c.env, env);
+
+  /**
+   * Applied to every response, proxied and static alike. Same-origin requests carry no
+   * `Origin` header and so need no CORS at all; these are the headers that matter for them.
+   */
+  app.use("*", async (c, next) => {
+    await next();
+    const path = c.req.path;
+    try {
+      const h = c.res.headers;
+      h.set("x-content-type-options", "nosniff");
+      h.set("referrer-policy", "strict-origin-when-cross-origin");
+      // Media is embedded by the public site (and possibly other origins); framing it is fine.
+      if (!path.startsWith("/media/")) h.set("x-frame-options", "SAMEORIGIN");
+      if (isAdminPath(path)) h.set("content-security-policy", ADMIN_CSP);
+    } catch {
+      /* an immutable response (rare) keeps its own headers */
+    }
+  });
 
   app.use(
     "*",
     cors({
-      origin: (o) => (o && ALLOWED_ORIGINS.includes(o) ? o : ALLOWED_ORIGINS[0]!),
+      // Unknown origins get no `access-control-allow-origin` at all, which is what makes
+      // the allowlist an allowlist. Same-origin requests never reach this branch.
+      origin: (o) => (o && origins.includes(o) ? o : null),
       credentials: true,
       allowHeaders: ["content-type", "authorization", "x-wove-channel", "mcp-session-id", "mcp-protocol-version", "accept"],
       allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
@@ -59,7 +113,14 @@ export function createApp(deps: AppDeps) {
 
   // ------------------------------------------------------------ system
   app.get("/health", (c) =>
-    c.json({ ok: true, version: VERSION, tools: registry.size, setupNeeded: isSetupNeeded(db) }));
+    c.json({
+      ok: true,
+      version: VERSION,
+      mode: mode(env),
+      uptime: Math.round(process.uptime()),
+      tools: registry.size,
+      setupNeeded: isSetupNeeded(db),
+    }));
 
   app.get("/api/openapi.json", (c) => c.json(buildOpenApi(registry, baseUrl)));
 
@@ -79,6 +140,8 @@ export function createApp(deps: AppDeps) {
   const SetupInput = z.object({ email: z.string().email(), name: z.string().min(1), password: z.string().min(8) });
 
   app.post("/api/auth/setup", async (c) => {
+    const limit = consume(authLimiter, `auth:${ipOf(c)}`, env);
+    if (limit.limited) return tooManyRequests(c, limit.retryAfter);
     if (!isSetupNeeded(db)) {
       return c.json(err("conflict", "Setup has already been completed"), 409);
     }
@@ -86,13 +149,15 @@ export function createApp(deps: AppDeps) {
     if (!parsed.success) return c.json(err("validation_error", "Invalid setup payload", parsed.error.flatten()), 400);
     const user = await createUser(db, { ...parsed.data, role: "admin" });
     const session = createSession(db, user.id);
-    c.header("set-cookie", sessionCookie(session.id));
+    c.header("set-cookie", sessionCookie(session.id, undefined, env));
     return c.json({ user: publicUser(user), actor: userActor(user) }, 201);
   });
 
   const LoginInput = z.object({ email: z.string().email(), password: z.string().min(1) });
 
   app.post("/api/auth/login", async (c) => {
+    const limit = consume(authLimiter, `auth:${ipOf(c)}`, env);
+    if (limit.limited) return tooManyRequests(c, limit.retryAfter);
     const parsed = LoginInput.safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success) return c.json(err("validation_error", "Invalid login payload", parsed.error.flatten()), 400);
     const user = db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase().trim())).get();
@@ -100,14 +165,14 @@ export function createApp(deps: AppDeps) {
       return c.json(err("unauthenticated", "Invalid email or password"), 401);
     }
     const session = createSession(db, user.id);
-    c.header("set-cookie", sessionCookie(session.id));
+    c.header("set-cookie", sessionCookie(session.id, undefined, env));
     return c.json({ user: publicUser(user), actor: userActor(user) });
   });
 
   app.post("/api/auth/logout", (c) => {
     const sid = readSessionId(c.req.raw);
     if (sid) destroySession(db, sid);
-    c.header("set-cookie", clearedCookie());
+    c.header("set-cookie", clearedCookie(env));
     return c.json({ ok: true });
   });
 
@@ -122,8 +187,11 @@ export function createApp(deps: AppDeps) {
     const { actor } = resolveActor(db, c.req.raw);
     const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     const body = await c.req.json().catch(() => ({}));
-    const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks }, registry);
-    if (!result.ok) return c.json(result.error, result.status as 400);
+    const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks, ip: ipOf(c) }, registry);
+    if (!result.ok) {
+      if (result.retryAfter) c.header("retry-after", String(result.retryAfter));
+      return c.json(result.error, result.status as 400);
+    }
     return c.json(result.data as object);
   });
 
@@ -214,6 +282,13 @@ export function createApp(deps: AppDeps) {
     if (!hasScopes(actor, ["ai:use"])) {
       auditCall(ctx, tool, input, false, "Missing scope(s): ai:use");
       return c.json(err("forbidden", "Missing scope(s): ai:use", { required: ["ai:use"], granted: actor.scopes }), 403);
+    }
+
+    // Shares the per-actor budget with the ai.* tools, so streaming is not a way around it.
+    const limit = consume(aiLimiter, `ai:${actorKey(actor, ipOf(c))}`, env);
+    if (limit.limited) {
+      auditCall(ctx, tool, input, false, RATE_LIMITED_MESSAGE);
+      return tooManyRequests(c, limit.retryAfter);
     }
 
     // Everything that can fail synchronously (missing key, unknown post) fails as JSON,
@@ -363,7 +438,28 @@ export function createApp(deps: AppDeps) {
     db, hooks, registry,
     resolve: (req) => resolveActor(db, req).actor,
   });
-  app.all("/mcp", (c) => mcp(c.req.raw));
+  app.all("/mcp", (c) => mcp(c.req.raw, ipOf(c)));
+
+  // ------------------------------------------------------------ admin SPA (production)
+  if (admin) {
+    const serveAdmin = async (c: { req: { path: string } }) =>
+      (await admin.handle(c.req.path)) ?? new Response(null, { status: 404 });
+    app.get("/admin", serveAdmin);
+    app.get("/admin/*", serveAdmin);
+  }
+
+  // ------------------------------------------------------------ site (proxy or index)
+  if (upstream) {
+    // Registered last: every route above already returned for the paths core owns.
+    app.all("*", async (c) => {
+      if (isReservedPath(c.req.path)) {
+        return c.json(err("not_found", `No route for ${c.req.method} ${c.req.path}`), 404);
+      }
+      return proxyRequest(upstream, c.req.raw, { env, server: c.env });
+    });
+  } else {
+    app.get("/", (c) => c.json({ name: "wove", admin: "/admin", api: "/api", mcp: "/mcp" }));
+  }
 
   app.notFound((c) => c.json(err("not_found", `No route for ${c.req.method} ${c.req.path}`), 404));
   app.onError((e, c) => {
@@ -372,6 +468,11 @@ export function createApp(deps: AppDeps) {
   });
 
   return app;
+}
+
+function tooManyRequests(c: { header: (k: string, v: string) => void; json: (b: unknown, s: 429) => Response }, retryAfter: number) {
+  c.header("retry-after", String(retryAfter));
+  return c.json(err("rate_limited", RATE_LIMITED_MESSAGE, { retryAfter }), 429);
 }
 
 export function isSetupNeeded(db: DB): boolean {

@@ -4,6 +4,7 @@ import type { DB } from "./db";
 import { agents, sessions, users } from "./db/schema";
 import { newId, nowIso, sha256 } from "./ids";
 import { ROLE_SCOPES } from "./tools/registry";
+import { secureCookies, type Env } from "./env";
 
 export const SESSION_COOKIE = "wove_session";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -78,10 +79,19 @@ export function destroySession(db: DB, id: string): void {
   db.delete(sessions).where(eq(sessions.id, id)).run();
 }
 
-export function sessionCookie(id: string, maxAgeSec = SESSION_TTL_MS / 1000): string {
-  return `${SESSION_COOKIE}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAgeSec)}`;
+/**
+ * `SameSite=Lax` (not Strict) so a link from the public site into /admin still arrives
+ * signed in; `Secure` whenever the deployment is actually served over https, which browsers
+ * require before they will store a `SameSite=None`-adjacent cookie at all.
+ */
+export function sessionCookie(id: string, maxAgeSec = SESSION_TTL_MS / 1000, env: Env = process.env): string {
+  return `${SESSION_COOKIE}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAgeSec)}${cookieSuffix(env)}`;
 }
-export const clearedCookie = () => `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+
+export const clearedCookie = (env: Env = process.env) =>
+  `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${cookieSuffix(env)}`;
+
+const cookieSuffix = (env: Env) => (secureCookies(env) ? "; Secure" : "");
 
 export function readSessionId(req: Request): string | undefined {
   return parseCookies(req.headers.get("cookie"))[SESSION_COOKIE];

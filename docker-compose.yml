@@ -1,0 +1,19 @@
+services:
+  wove:
+    build: .
+    image: wove:latest
+    ports:
+      - "4000:4000"
+    environment:
+      WOVE_SITE_URL: ${WOVE_SITE_URL:-http://localhost:4000}
+      WOVE_SECRET: ${WOVE_SECRET:?set WOVE_SECRET to a long random string}
+      # WOVE_AI_ANTHROPIC_KEY: ${WOVE_AI_ANTHROPIC_KEY}
+      # WOVE_AI_OPENAI_KEY: ${WOVE_AI_OPENAI_KEY}
+      # WOVE_AI_GOOGLE_KEY: ${WOVE_AI_GOOGLE_KEY}
+      # WOVE_AI_XAI_KEY: ${WOVE_AI_XAI_KEY}
+    volumes:
+      - wove-data:/app/packages/core/data
+    restart: unless-stopped
+
+volumes:
+  wove-data:

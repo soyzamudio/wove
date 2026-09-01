@@ -11,6 +11,8 @@
     "dev:core": "bun run --cwd packages/core dev",
     "dev:admin": "bun run --cwd packages/admin dev",
     "dev:site": "bun run --cwd packages/site dev",
+    "build": "WOVE_ADMIN_BASE=/admin/ bun run --cwd packages/admin build && bun run --cwd packages/site build",
+    "start": "bun scripts/start.ts",
     "test": "bun run --filter '*' test",
     "typecheck": "bun run --filter '*' typecheck",
     "postinstall": "bun scripts/postinstall.ts"

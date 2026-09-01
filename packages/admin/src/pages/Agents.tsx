@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bot, KeyRound, Plus } from "lucide-react";
 import { Scope, type Agent as AgentType } from "@wove/sdk";
-import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
+import { API_URL, resolveApiOrigin, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";
 import {
@@ -22,11 +22,12 @@ import {
 const SCOPES = Scope.options;
 
 function mcpSnippet(apiKey: string): string {
+  const origin = resolveApiOrigin(API_URL, typeof window !== "undefined" ? window.location.origin : undefined);
   return JSON.stringify(
     {
       mcpServers: {
         wove: {
-          url: "http://localhost:4000/mcp",
+          url: `${origin}/mcp`,
           headers: { Authorization: `Bearer ${apiKey}` },
         },
       },

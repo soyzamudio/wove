@@ -5,9 +5,14 @@ import { auditLog, posts } from "./db/schema";
 import { hooks as defaultHooks, type Hooks } from "./hooks";
 import { newId, nowIso } from "./ids";
 import { hydratePost } from "./tools/shared";
+import { logRetention, runRetention, type RetentionSummary } from "./retention";
+import { retentionDays, type Env } from "./env";
 
 /** How often the boot-time scheduler looks for due posts. */
 export const SCHEDULER_INTERVAL_MS = 30_000;
+
+/** How often retention runs. Also runs once at boot so a long-lived process is not required. */
+export const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The scheduler acts on its own behalf. `Actor.kind` has no "system" member (it is a
@@ -57,6 +62,21 @@ export async function publishDue(db: DB, hooks: Hooks = defaultHooks, now = new 
 export interface SchedulerHandle {
   stop(): void;
   enabled: boolean;
+  /** True when at least one retention budget is non-zero. */
+  retention: boolean;
+}
+
+/** Retention is on unless every budget is explicitly zeroed. */
+export function retentionEnabled(env: Env = process.env): boolean {
+  const d = retentionDays(env);
+  return d.auditLog > 0 || d.aiUsage > 0 || d.trash > 0 || d.imports > 0;
+}
+
+/** Run the retention sweep and log a one-line summary if anything went. */
+export function sweepRetention(db: DB, env: Env = process.env): RetentionSummary {
+  const summary = runRetention(db, env);
+  logRetention(summary);
+  return summary;
 }
 
 export function schedulerEnabled(): boolean {
@@ -67,13 +87,36 @@ export function schedulerEnabled(): boolean {
  * Run `publishDue` now and every 30s. The interval is `unref`'d, so it never keeps a
  * process alive on its own.
  */
-export function startScheduler(db: DB, hooks: Hooks = defaultHooks): SchedulerHandle {
-  if (!schedulerEnabled()) return { stop: () => {}, enabled: false };
+export function startScheduler(db: DB, hooks: Hooks = defaultHooks, env: Env = process.env): SchedulerHandle {
+  if (!schedulerEnabled()) return { stop: () => {}, enabled: false, retention: false };
   const tick = () => {
     void publishDue(db, hooks).catch((e) => console.error("[scheduler]", e));
   };
   tick();
   const timer = setInterval(tick, SCHEDULER_INTERVAL_MS);
   timer.unref?.();
-  return { stop: () => clearInterval(timer), enabled: true };
+
+  const retention = retentionEnabled(env);
+  let retentionTimer: ReturnType<typeof setInterval> | undefined;
+  if (retention) {
+    const sweep = () => {
+      try {
+        sweepRetention(db, env);
+      } catch (e) {
+        console.error("[retention]", e);
+      }
+    };
+    sweep();
+    retentionTimer = setInterval(sweep, RETENTION_INTERVAL_MS);
+    retentionTimer.unref?.();
+  }
+
+  return {
+    stop: () => {
+      clearInterval(timer);
+      if (retentionTimer) clearInterval(retentionTimer);
+    },
+    enabled: true,
+    retention,
+  };
 }

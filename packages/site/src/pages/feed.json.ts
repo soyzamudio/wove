@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { getSettings, listPosts } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
 import { blocksToMarkdown } from "../lib/blocks-text";
-import { API_URL } from "../lib/env";
+import { PUBLIC_URL } from "../lib/env";
 
 export const GET: APIRoute = async () => {
   const settings = await getSettings();
@@ -22,7 +22,7 @@ export const GET: APIRoute = async () => {
         id: post.id,
         url: `${siteUrl}/${post.slug}`,
         title: post.title,
-        content_html: isBlocks ? renderMarkdown(contentText, API_URL) : renderMarkdown(post.content, API_URL),
+        content_html: isBlocks ? renderMarkdown(contentText, PUBLIC_URL) : renderMarkdown(post.content, PUBLIC_URL),
         content_text: contentText,
         summary: post.excerpt ?? undefined,
         date_published: post.publishedAt ?? undefined,
