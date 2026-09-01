@@ -87,6 +87,13 @@ export function SettingsAi() {
     onError: (err) => toast.error(errorMessage(err)),
   });
 
+  // Suggestions never need a key (core ships a built-in list), so load them as soon as the
+  // provider is known; the Refresh button re-queries after a key is saved.
+  const loadModelsMutate = loadModels.mutate;
+  useEffect(() => {
+    loadModelsMutate({ provider: form.provider });
+  }, [form.provider, loadModelsMutate]);
+
   const test = useToolMutation("ai.test", {
     onSuccess: (result) => setTestResult(`${result.provider}/${result.model} — ${result.latencyMs}ms`),
     onError: () => setTestResult(null),
@@ -149,7 +156,7 @@ export function SettingsAi() {
                     list="ai-model-options"
                     value={form.model}
                     onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
-                    placeholder="e.g. claude-sonnet-4-5"
+                    placeholder="e.g. claude-opus-5"
                   />
                   <Button
                     type="button"
@@ -157,7 +164,7 @@ export function SettingsAi() {
                     disabled={loadModels.isPending}
                     onClick={() => loadModels.mutate({ provider: form.provider })}
                   >
-                    {loadModels.isPending ? "Loading…" : "Load models"}
+                    {loadModels.isPending ? "Loading…" : "Refresh"}
                   </Button>
                 </div>
                 <datalist id="ai-model-options">

@@ -4,7 +4,7 @@ import { aiUsage, posts } from "../db/schema";
 import { defineTool, notFound, ToolError, type Ctx } from "./registry";
 import { postCreate } from "./content";
 import { decodeCursor, encodeCursor } from "./shared";
-import { DEFAULT_MAX_TOKENS, DEFAULT_MODELS } from "../ai/defaults";
+import { DEFAULT_MAX_TOKENS, DEFAULT_MODELS, KNOWN_MODELS } from "../ai/defaults";
 import { aiConfig, clearSiteKey, readAiSettings, resolveKey, storeSiteKey, writeAiSettings } from "../ai/keys";
 import { createProviderClient } from "../ai/provider";
 import { DRAFT_RETRY_NUDGE, baseSystemPrompt, draftPostSystem, parseDraftJson, rewriteSystem, withPostContext } from "../ai/prompts";
@@ -65,13 +65,25 @@ export const aiModels = defineTool({
     const settings = readAiSettings(ctx.db);
     const provider = input.provider ?? settings.provider;
     const { key } = resolveKey(ctx.db, provider);
-    const client = await createProviderClient({
-      provider,
-      model: settings.provider === provider ? settings.model : DEFAULT_MODELS[provider],
-      apiKey: key,
-      baseUrl: settings.baseUrl,
-    });
-    return client.listModels();
+    const known = KNOWN_MODELS[provider];
+    // Hosted providers authenticate their list-models endpoint; without a key, offer the
+    // built-in suggestions. Compatible endpoints (Ollama etc.) are tried whenever a baseUrl exists.
+    const canQueryLive = provider === "openai-compatible" ? !!settings.baseUrl : !!key;
+    if (!canQueryLive) return known;
+    try {
+      const client = await createProviderClient({
+        provider,
+        model: settings.provider === provider ? settings.model : DEFAULT_MODELS[provider],
+        apiKey: key,
+        baseUrl: settings.baseUrl,
+      });
+      const live = await client.listModels();
+      const seen = new Set(live.map((m) => m.id));
+      return [...live, ...known.filter((m) => !seen.has(m.id))];
+    } catch (e) {
+      if (known.length === 0) throw e;
+      return known; // live lookup failed (bad key, network) — suggestions still beat an error
+    }
   },
 });
 

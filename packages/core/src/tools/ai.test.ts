@@ -190,8 +190,11 @@ describe("ai.draftPost", () => {
 
 describe("ai.models / ai.test / ai.usage", () => {
   test("ai.models lists the provider's models", async () => {
+    process.env.AGENTPRESS_AI_ANTHROPIC_KEY = "platform-test-key"; // live lookup needs a key
     const models = unwrap<{ id: string; name: string | null }[]>(await h.call(ADMIN, "ai.models", {}));
-    expect(models).toEqual([{ id: "fake-1", name: "Fake One" }]);
+    // live results come first, built-in suggestions are appended after
+    expect(models[0]).toEqual({ id: "fake-1", name: "Fake One" });
+    expect(models.some((m) => m.id === "claude-opus-5")).toBe(true);
   });
 
   test("ai.test returns latency and meters the probe", async () => {
@@ -261,5 +264,13 @@ describe("POST /api/ai/stream", () => {
     ).apiKey;
     const res = await post({ kind: "rewrite", text: "a", instruction: "b" }, { authorization: `Bearer ${key}` });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("ai.models without a key", () => {
+  test("returns built-in suggestions instead of demanding a key", async () => {
+    const models = unwrap<{ id: string; name: string | null }[]>(await h.call(ADMIN, "ai.models", { provider: "google" }));
+    expect(models.length).toBeGreaterThan(0);
+    expect(models.some((m) => m.id === "gemini-3.7-flash")).toBe(true);
   });
 });
