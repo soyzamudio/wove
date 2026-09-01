@@ -4,7 +4,7 @@ import { LogOut, MoreVertical, Plus, Search } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiLogout, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
-import { NAV_GROUPS, type NavItem } from "./nav";
+import { visibleNavGroups, type NavItem } from "./nav";
 import { CommandPalette } from "./CommandPalette";
 import { ChatLauncher, ChatPanel } from "./ChatPanel";
 import { ChatProvider, useChat } from "../context/ChatContext";
@@ -28,13 +28,15 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 function LayoutShell({ children }: { children: ReactNode }) {
-  const { user, refresh } = useAuth();
+  const { user, actor, refresh } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const chat = useChat();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const navGroups = visibleNavGroups(actor?.scopes);
 
   const site = useToolQuery("site.info", {});
   const siteUrl = site.data?.settings.siteUrl || "";
@@ -144,7 +146,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 space-y-5 px-3 pb-4">
-          {NAV_GROUPS.map((group) => (
+          {navGroups.map((group) => (
             <div key={group.label}>
               <div className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
                 {group.label}
@@ -191,11 +193,17 @@ function LayoutShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto flex items-center gap-2.5 border-t border-zinc-900 px-4 py-3">
-          <Avatar name={user?.name} size="sm" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-zinc-100">{user?.name}</div>
-            <div className="truncate text-xs text-zinc-500">{user?.email}</div>
-          </div>
+          <NavLink
+            to="/profile"
+            title="Your profile"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 py-1 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <Avatar name={user?.name} size="sm" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-zinc-100">{user?.name}</div>
+              <div className="truncate text-xs text-zinc-500">{user?.email}</div>
+            </div>
+          </NavLink>
           <button
             type="button"
             onClick={handleLogout}

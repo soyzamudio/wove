@@ -1,6 +1,7 @@
 import type { Design, Menu, Post, Settings, Term } from "@wove/sdk";
 import { API_URL, MOCK } from "./env";
 import { cached } from "./cache";
+import { shouldReport404 } from "./redirects";
 import { mockAllContent, mockDesign, mockMenus, mockSearch, mockSettings, mockTerms } from "./mock-data";
 
 export interface ListPostsParams {
@@ -105,4 +106,49 @@ function listMockPosts(params: ListPostsParams): PostPage {
   const nextOffset = offset + limit;
   const nextCursor = nextOffset < items.length ? String(nextOffset) : null;
   return { items: page, nextCursor };
+}
+
+// ---------------------------------------------------------------- redirects & 404s
+
+export interface RedirectHit {
+  toPath: string;
+  code: 301 | 302;
+}
+
+/** How long the site will wait on core before it just renders the 404. */
+const REDIRECT_TIMEOUT_MS = 2000;
+const REPORT_404_TIMEOUT_MS = 500;
+
+/**
+ * Ask core whether a missing path has a redirect. Never throws and never blocks a render
+ * for long: any error, timeout or non-200 means "no redirect".
+ */
+export async function resolveRedirect(path: string): Promise<RedirectHit | null> {
+  if (MOCK) return null;
+  const url = `${API_URL.replace(/\/+$/, "")}/api/public/resolve?path=${encodeURIComponent(path)}`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(REDIRECT_TIMEOUT_MS) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { redirect: RedirectHit | null };
+    const hit = body?.redirect;
+    if (!hit || typeof hit.toPath !== "string" || !hit.toPath) return null;
+    return { toPath: hit.toPath, code: hit.code === 302 ? 302 : 301 };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Tell core about a 404. Fire-and-forget: the returned promise is never awaited by pages,
+ * it is capped by its own timeout, and every failure is swallowed.
+ */
+export function report404(path: string, referrer?: string | null): void {
+  if (MOCK || !shouldReport404(path)) return;
+  const url = `${API_URL.replace(/\/+$/, "")}/api/public/404`;
+  void fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path, referrer: referrer ?? null }),
+    signal: AbortSignal.timeout(REPORT_404_TIMEOUT_MS),
+  }).catch(() => {});
 }

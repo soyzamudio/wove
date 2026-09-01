@@ -38,9 +38,12 @@ import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
 import { draftKey } from "../lib/draftRecovery";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
+import { canReview, editorStatusOptions } from "../lib/roles";
 import {
   EMPTY_SEO,
   ImageRefField,
+  PendingReviewBanner,
   RecoveryBanner,
   SeoSection,
   TrashedBanner,
@@ -68,7 +71,7 @@ import {
   errorMessage,
 } from "../components/ui";
 
-type Status = "draft" | "published" | "scheduled";
+type Status = "draft" | "pending" | "published" | "scheduled";
 type Rail = "page" | "block";
 type Preview = "desktop" | "mobile";
 
@@ -115,6 +118,13 @@ export function PageBuilder() {
   const siteQuery = useToolQuery("site.info", {});
   const categoriesQuery = useToolQuery("term.list", { taxonomy: "category" });
   const designQuery = useToolQuery("design.get", {});
+  const { role, can } = useAuth();
+  // Only admins can list users; editors fall back to the raw author id in the review banner.
+  const usersQuery = useToolQuery(
+    "user.list",
+    {},
+    { enabled: can(["users:manage"]) && postQuery.data?.status === "pending", retry: false }
+  );
 
   const builder = useBuilderState(emptyBuilderDoc());
 
@@ -233,6 +243,7 @@ export function PageBuilder() {
   const createMutation = useToolMutation("post.create");
   const updateMutation = useToolMutation("post.update");
   const publishMutation = useToolMutation("post.publish");
+  const submitMutation = useToolMutation("post.update");
   const deleteMutation = useToolMutation("post.delete");
   const restoreMutation = useToolMutation("post.restore");
   const revisionsQuery = useToolQuery("post.revisions", { id: id ?? "" }, { enabled: false });
@@ -342,6 +353,23 @@ export function PageBuilder() {
     );
   }
 
+  /** Move a page between draft and pending review (submit / send back). */
+  function setReviewStatus(next: "draft" | "pending") {
+    if (!id) return;
+    submitMutation.mutate(
+      { id, status: next },
+      {
+        onSuccess: () => {
+          setStatus(next);
+          toast.success(next === "pending" ? "Submitted for review" : "page sent back to draft");
+          invalidate("post.list");
+          invalidate("post.get");
+        },
+        onError: (err) => toast.error(errorMessage(err)),
+      }
+    );
+  }
+
   /** Delete now means "move to trash", with a one-click undo. */
   function handleTrash() {
     if (!id) return;
@@ -440,6 +468,12 @@ export function PageBuilder() {
   const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
   const saving = createMutation.isPending || updateMutation.isPending;
   const isTrashed = postQuery.data?.status === "trashed";
+  const isPending = postQuery.data?.status === "pending";
+  const isReviewer = canReview(role);
+  const isContributor = role === "contributor";
+  const authorLabel = usersQuery.data?.find((u) => u.id === postQuery.data?.authorId)?.name
+    || postQuery.data?.authorId
+    || "someone";
   // Preview the real site look on the canvas.
   const canvasVars = designQuery.data
     ? (designToCssVars(designQuery.data) as unknown as CSSProperties)
@@ -487,9 +521,11 @@ export function PageBuilder() {
               setMetaDirty(true);
             }}
           >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="scheduled">Scheduled</option>
+            {editorStatusOptions(role, status).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </Select>
         </div>
         <div>
@@ -756,6 +792,20 @@ export function PageBuilder() {
               <Button variant="primary" disabled={saving} onClick={handleSave}>
                 {saving ? "Saving…" : "Update"}
               </Button>
+            ) : isContributor ? (
+              status === "pending" ? (
+                <Button variant="secondary" disabled>
+                  Submitted — awaiting review
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  disabled={submitMutation.isPending}
+                  onClick={() => setReviewStatus("pending")}
+                >
+                  {submitMutation.isPending ? "Submitting…" : "Submit for review"}
+                </Button>
+              )
             ) : (
               <Button variant="primary" disabled={publishMutation.isPending} onClick={handlePublish}>
                 {publishMutation.isPending ? "Publishing…" : "Publish"}
@@ -822,6 +872,16 @@ export function PageBuilder() {
           </>
         }
       />
+
+      {isPending && isReviewer && (
+        <PendingReviewBanner
+          noun="page"
+          submittedBy={authorLabel}
+          busy={publishMutation.isPending || submitMutation.isPending}
+          onApprove={handlePublish}
+          onBackToDraft={() => setReviewStatus("draft")}
+        />
+      )}
 
       {isTrashed && (
         <TrashedBanner

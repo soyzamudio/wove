@@ -7,7 +7,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role", { enum: ["admin", "editor"] }).notNull().default("editor"),
+  role: text("role", { enum: ["admin", "editor", "author", "contributor"] }).notNull().default("editor"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -49,13 +49,15 @@ export const posts = sqliteTable(
     /** "markdown" (content is Markdown) or "blocks" (content is a JSON BlocksDoc). */
     format: text("format", { enum: ["markdown", "blocks"] }).notNull().default("markdown"),
     excerpt: text("excerpt"),
-    status: text("status", { enum: ["draft", "published", "scheduled", "trashed"] }).notNull().default("draft"),
+    status: text("status", { enum: ["draft", "pending", "published", "scheduled", "trashed"] }).notNull().default("draft"),
     /** ImageRef JSON or null. */
     featuredImage: text("featured_image", { mode: "json" }).$type<Record<string, unknown> | null>(),
     /** { title, description, ogImage, noindex } JSON. */
     seo: text("seo", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
     /** Set when trashed, so trash can be auto-purged later. */
     trashedAt: text("trashed_at"),
+    /** Page hierarchy (wave 2): parent page id. */
+    parentId: text("parent_id"),
     authorId: text("author_id"),
     publishedAt: text("published_at"),
     meta: text("meta", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
@@ -207,3 +209,40 @@ export type AgentRow = typeof agents.$inferSelect;
 export type MediaRow = typeof media.$inferSelect;
 export type TermRow = typeof terms.$inferSelect;
 export type AiUsageRow = typeof aiUsage.$inferSelect;
+
+export const invites = sqliteTable("invites", {
+  id: text("id").primaryKey(),
+  tokenHash: text("token_hash").notNull(),
+  email: text("email").notNull(),
+  role: text("role", { enum: ["admin", "editor", "author", "contributor"] }).notNull().default("editor"),
+  invitedBy: text("invited_by"),
+  expiresAt: text("expires_at").notNull(),
+  acceptedAt: text("accepted_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const passwordResets = sqliteTable("password_resets", {
+  id: text("id").primaryKey(),
+  tokenHash: text("token_hash").notNull(),
+  userId: text("user_id").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const redirects = sqliteTable("redirects", {
+  id: text("id").primaryKey(),
+  fromPath: text("from_path").notNull().unique(),
+  toPath: text("to_path").notNull(),
+  code: integer("code").notNull().default(301),
+  source: text("source", { enum: ["manual", "slug-change", "import"] }).notNull().default("manual"),
+  hits: integer("hits").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+});
+
+export const notFoundLog = sqliteTable("not_found_log", {
+  path: text("path").primaryKey(),
+  count: integer("count").notNull().default(0),
+  lastSeen: text("last_seen").notNull(),
+  referrer: text("referrer"),
+});

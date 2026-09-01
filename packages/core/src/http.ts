@@ -5,7 +5,7 @@ import { and, count, desc, eq, inArray, like, lte, or, sql } from "drizzle-orm";
 import { join } from "node:path";
 import type { Channel } from "@wove/sdk";
 import type { DB } from "./db";
-import { posts, postTerms, terms as termsTable, users } from "./db/schema";
+import { invites, passwordResets, posts, postTerms, terms as termsTable, users } from "./db/schema";
 import type { Hooks } from "./hooks";
 import { hooks as defaultHooks } from "./hooks";
 import { auditCall, hasScopes, registry as defaultRegistry, dispatch, ToolError, type Ctx, type Registry } from "./tools/registry";
@@ -21,9 +21,14 @@ import { readMenus } from "./tools/menus";
 import { readDesign } from "./tools/design";
 import { mediaDir, safeFilename } from "./tools/media";
 import {
-  clearedCookie, createSession, createUser, destroySession, publicUser,
-  readSessionId, resolveActor, sessionCookie, userActor, verifyPassword,
+  clearedCookie, createSession, createUser, deleteUserSessions, destroySession, hashPassword,
+  newResetToken, publicUser, readSessionId, resolveActor, RESET_TTL_MS, sessionCookie,
+  userActor, verifyPassword,
 } from "./auth";
+import { newId, nowIso, sha256 } from "./ids";
+import { brandFor, passwordResetEmail, sendEmailQuietly } from "./email";
+import { resetPasswordUrl } from "./tools/users";
+import { publicRedirectRoutes } from "./tools/redirects";
 import { buildOpenApi, jsonSchemaFor } from "./openapi";
 import { createMcpHandler } from "./mcp";
 import { VERSION } from "./version";
@@ -183,12 +188,89 @@ export function createApp(deps: AppDeps) {
     return c.json({ user: r.user ? publicUser(r.user) : null, actor: r.actor });
   });
 
+  /**
+   * Invite acceptance. The token is only ever compared as a hash, and the role comes from
+   * the invite row — never from the request — so a leaked link cannot escalate itself.
+   */
+  const AcceptInviteInput = z.object({ token: z.string().min(1), name: z.string().min(1), password: z.string().min(8) });
+
+  app.post("/api/auth/accept-invite", async (c) => {
+    const limit = consume(authLimiter, `auth:${ipOf(c)}`, env);
+    if (limit.limited) return tooManyRequests(c, limit.retryAfter);
+    const parsed = AcceptInviteInput.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json(err("validation_error", "Invalid invite payload", parsed.error.flatten()), 400);
+
+    const row = db.select().from(invites).where(eq(invites.tokenHash, sha256(parsed.data.token))).get();
+    if (!row || row.acceptedAt) return c.json(err("validation_error", "This invitation is no longer valid"), 400);
+    if (row.expiresAt <= nowIso()) return c.json(err("validation_error", "This invitation has expired"), 400);
+    if (db.select({ id: users.id }).from(users).where(eq(users.email, row.email)).get()) {
+      return c.json(err("conflict", "That email already has an account — sign in instead"), 409);
+    }
+
+    const user = await createUser(db, {
+      email: row.email, name: parsed.data.name, password: parsed.data.password, role: row.role,
+    });
+    db.update(invites).set({ acceptedAt: nowIso() }).where(eq(invites.id, row.id)).run();
+    const session = createSession(db, user.id);
+    c.header("set-cookie", sessionCookie(session.id, undefined, env));
+    return c.json({ user: publicUser(user), actor: userActor(user) }, 201);
+  });
+
+  /**
+   * Always 200, always the same body and roughly the same cost: whether an address has an
+   * account is not something an unauthenticated caller gets to learn.
+   */
+  app.post("/api/auth/forgot", async (c) => {
+    const limit = consume(authLimiter, `auth:${ipOf(c)}`, env);
+    if (limit.limited) return tooManyRequests(c, limit.retryAfter);
+    const parsed = z.object({ email: z.string().email() }).safeParse(await c.req.json().catch(() => ({})));
+    if (parsed.success) {
+      const user = db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase().trim())).get();
+      if (user) {
+        const token = newResetToken();
+        db.insert(passwordResets).values({
+          id: newId(), tokenHash: sha256(token), userId: user.id,
+          expiresAt: new Date(Date.now() + RESET_TTL_MS).toISOString(), usedAt: null, createdAt: nowIso(),
+        }).run();
+        sendEmailQuietly({ to: user.email, ...passwordResetEmail(brandFor(db), { resetUrl: resetPasswordUrl(token) }) });
+      }
+    }
+    return c.json({ ok: true });
+  });
+
+  const ResetInput = z.object({ token: z.string().min(1), password: z.string().min(8) });
+
+  app.post("/api/auth/reset", async (c) => {
+    const limit = consume(authLimiter, `auth:${ipOf(c)}`, env);
+    if (limit.limited) return tooManyRequests(c, limit.retryAfter);
+    const parsed = ResetInput.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json(err("validation_error", "Invalid reset payload", parsed.error.flatten()), 400);
+
+    const row = db.select().from(passwordResets).where(eq(passwordResets.tokenHash, sha256(parsed.data.token))).get();
+    if (!row || row.usedAt || row.expiresAt <= nowIso()) {
+      return c.json(err("validation_error", "This reset link is no longer valid"), 400);
+    }
+    const user = db.select().from(users).where(eq(users.id, row.userId)).get();
+    if (!user) return c.json(err("validation_error", "This reset link is no longer valid"), 400);
+
+    db.update(users).set({ passwordHash: await hashPassword(parsed.data.password) }).where(eq(users.id, user.id)).run();
+    db.update(passwordResets).set({ usedAt: nowIso() }).where(eq(passwordResets.id, row.id)).run();
+    // Whoever was signed in as this user — including whoever took the password — is out.
+    deleteUserSessions(db, user.id);
+    c.header("set-cookie", clearedCookie(env));
+    return c.json({ ok: true });
+  });
+
   // ------------------------------------------------------------ tools
   app.post("/api/tools/:name", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
     const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     const body = await c.req.json().catch(() => ({}));
-    const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks, registry, ip: ipOf(c) }, registry);
+    const result = await dispatch(
+      c.req.param("name"), body,
+      { actor, channel, db, hooks, registry, ip: ipOf(c), sessionId: readSessionId(c.req.raw) },
+      registry,
+    );
     if (!result.ok) {
       if (result.retryAfter) c.header("retry-after", String(result.retryAfter));
       return c.json(result.error, result.status as 400);
@@ -494,6 +576,9 @@ export function createApp(deps: AppDeps) {
       headers: { "content-type": file.type || "application/octet-stream", "cache-control": "public, max-age=31536000" },
     });
   });
+
+  // ------------------------------------------------------------ redirects & 404s (public)
+  app.route("/api/public", publicRedirectRoutes(db));
 
   // ------------------------------------------------------------ MCP
   const mcp = createMcpHandler({

@@ -29,7 +29,7 @@ export type Channel = z.infer<typeof Channel>;
 
 // ---------- content ----------
 export const PostType = z.enum(["post", "page"]);
-export const PostStatus = z.enum(["draft", "published", "scheduled", "trashed"]);
+export const PostStatus = z.enum(["draft", "pending", "published", "scheduled", "trashed"]);
 export const PostFormat = z.enum(["markdown", "blocks"]);
 export type PostFormat = z.infer<typeof PostFormat>;
 
@@ -124,7 +124,9 @@ export const AuditEntry = z.object({
 });
 export type AuditEntry = z.infer<typeof AuditEntry>;
 
-export const User = z.object({ id: Id, email: z.string().email(), name: z.string(), role: z.enum(["admin", "editor"]), createdAt: ISODate });
+export const UserRole = z.enum(["admin", "editor", "author", "contributor"]);
+export type UserRole = z.infer<typeof UserRole>;
+export const User = z.object({ id: Id, email: z.string().email(), name: z.string(), role: UserRole, createdAt: ISODate });
 export type User = z.infer<typeof User>;
 
 // ---------- AI ----------
@@ -331,3 +333,31 @@ export const TemplateApplyReport = z.object({
   settingsApplied: z.boolean(), mediaUploaded: z.number().int(),
 });
 export type TemplateApplyReport = z.infer<typeof TemplateApplyReport>;
+
+// ---------- invites & email ----------
+export const Invite = z.object({
+  id: Id, email: z.string().email(), role: UserRole, invitedBy: Id.nullable(),
+  expiresAt: ISODate, createdAt: ISODate,
+});
+export type Invite = z.infer<typeof Invite>;
+
+export const EmailStatus = z.object({
+  driver: z.enum(["console", "smtp", "resend"]),
+  from: z.string(),
+  configured: z.boolean().describe("false when the console driver is active (emails only logged)"),
+});
+
+// ---------- redirects & 404s ----------
+export const Redirect = z.object({
+  id: Id,
+  fromPath: z.string().regex(/^\/[^\s]*$/, "must start with /"),
+  toPath: z.string().min(1).describe("path or absolute URL"),
+  code: z.union([z.literal(301), z.literal(302)]).default(301),
+  source: z.enum(["manual", "slug-change", "import"]).default("manual"),
+  hits: z.number().int().default(0),
+  createdAt: ISODate,
+});
+export type Redirect = z.infer<typeof Redirect>;
+
+export const NotFoundEntry = z.object({ path: z.string(), count: z.number().int(), lastSeen: ISODate, referrer: z.string().nullable() });
+export type NotFoundEntry = z.infer<typeof NotFoundEntry>;

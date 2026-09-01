@@ -6,6 +6,7 @@ import { registerCoreTools, registry } from "./tools";
 import { mediaDir } from "./tools/media";
 import { createApp, isSetupNeeded } from "./http";
 import { startScheduler } from "./scheduler";
+import { registerRedirectListener } from "./redirect-listener";
 import { adminDist, isProduction, mode, rateLimitEnabled, retentionDays, siteUpstream } from "./env";
 import { VERSION } from "./version";
 
@@ -22,6 +23,7 @@ export * from "./scheduler";
 export * from "./env";
 export * from "./ratelimit";
 export * from "./retention";
+export * from "./redirect-listener";
 export { createAdminServer } from "./static";
 export { proxyRequest, isReservedPath } from "./proxy";
 
@@ -31,6 +33,7 @@ export async function boot(opts: { dbPath?: string; port?: number } = {}) {
 
   const db = openDb(dbPath);
   registerCoreTools(registry);
+  registerRedirectListener(hooks, db);
   const plugins = await loadPlugins(pluginsDir(), registry, hooks);
 
   const port = opts.port ?? Number(process.env.PORT ?? 4000);

@@ -14,6 +14,8 @@ export interface HookMap {
   "post.afterSave": { post: Post; created: boolean; ctx: HookContext };
   /** Fired when a post transitions to published/scheduled. */
   "post.publish": { post: Post; ctx: HookContext };
+  /** Fired when a post *enters* `pending` — a contributor submitting work for review. */
+  "post.pending": { post: Post; ctx: HookContext };
   /** Fired when a post is moved to the trash (not on permanent delete). */
   "post.trash": { post: Post; ctx: HookContext };
   /** Fired when a trashed post is restored to draft. */

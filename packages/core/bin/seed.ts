@@ -25,6 +25,20 @@ if (!admin) {
   console.log(`  user    ${ADMIN_EMAIL} (already existed)`);
 }
 
+/** A user per role, so the roles/ownership rules are exercisable straight after a seed. */
+const TEAM = [
+  { email: "editor@example.com", password: "editor1234", name: "Edie Editor", role: "editor" as const },
+  { email: "writer@example.com", password: "writer1234", name: "Wren Writer", role: "contributor" as const },
+];
+for (const m of TEAM) {
+  if (db.select().from(users).where(eq(users.email, m.email)).get()) {
+    console.log(`  user    ${m.email} (already existed)`);
+    continue;
+  }
+  await createUser(db, m);
+  console.log(`  user    ${m.email} / ${m.password}  (${m.role})`);
+}
+
 const actor: Actor = userActor(admin!);
 const ctx = { actor, channel: "system" as const, db, hooks };
 

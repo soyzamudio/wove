@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Actor, Channel, Scope } from "@wove/sdk";
+import type { Actor, Channel, Scope, UserRole } from "@wove/sdk";
 import type { DB } from "../db";
 import { auditLog } from "../db/schema";
 import { newId, nowIso } from "../ids";
@@ -22,6 +22,11 @@ export interface Ctx {
    * anonymous callers; absent in-process (tests, hooks) which are never limited by IP.
    */
   ip?: string;
+  /**
+   * The caller's session id, when they arrived with a session cookie. Only used to spare
+   * the current session when a password change signs the user out everywhere else.
+   */
+  sessionId?: string;
 }
 
 export interface Tool<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -107,8 +112,16 @@ export const registry = new Registry();
 
 // ---------------------------------------------------------------- scopes
 
-/** Scopes granted to a human user by role. */
-export const ROLE_SCOPES: Record<"admin" | "editor", Scope[]> = {
+/**
+ * Scopes granted to a human user by role.
+ *
+ * The ladder is WordPress-shaped and deliberately so: `admin` runs the site, `editor` runs
+ * the content (everything but people and agents), `author` publishes their own work, and
+ * `contributor` writes but cannot publish — which is why it is the one role missing
+ * `content:publish`. Ownership (who may touch *which* post) is enforced separately, in
+ * `tools/content.ts`; scopes only say what kind of action is possible at all.
+ */
+export const ROLE_SCOPES: Record<UserRole, Scope[]> = {
   admin: ["*"],
   editor: [
     "content:read", "content:write", "content:publish",
@@ -116,7 +129,22 @@ export const ROLE_SCOPES: Record<"admin" | "editor", Scope[]> = {
     "settings:read", "settings:write",
     "audit:read",
   ],
+  author: [
+    "content:read", "content:write", "content:publish",
+    "media:read", "media:write",
+    "ai:use",
+    "settings:read",
+  ],
+  contributor: [
+    "content:read", "content:write",
+    "media:read", "media:write",
+    "ai:use",
+    "settings:read",
+  ],
 };
+
+/** Roles whose reach over content is site-wide; everyone else may only touch their own. */
+export const UNRESTRICTED_ROLES: readonly UserRole[] = ["admin", "editor"];
 
 export function hasScopes(actor: Actor, required: readonly Scope[]): boolean {
   if (required.length === 0) return true;

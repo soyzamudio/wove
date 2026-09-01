@@ -8,9 +8,12 @@ import { relativeTime } from "../lib/time";
 import { draftKey } from "../lib/draftRecovery";
 import { useDraftRecovery } from "../hooks/useDraftRecovery";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
+import { canReview, editorStatusOptions } from "../lib/roles";
 import {
   EMPTY_SEO,
   ImageRefField,
+  PendingReviewBanner,
   RecoveryBanner,
   SeoSection,
   TrashedBanner,
@@ -37,7 +40,7 @@ import {
   type RichSelection,
 } from "../components/RichMarkdownEditor";
 
-type Status = "draft" | "published" | "scheduled";
+type Status = "draft" | "pending" | "published" | "scheduled";
 
 /** AI streams faster than a ProseMirror re-parse is worth doing; ~4 repaints/s. */
 const STREAM_REPAINT_MS = 250;
@@ -71,6 +74,13 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const postQuery = useToolQuery("post.get", { id: id ?? "" }, { enabled: !isCreate });
   const categoriesQuery = useToolQuery("term.list", { taxonomy: "category" });
   const siteQuery = useToolQuery("site.info", {});
+  const { role, can } = useAuth();
+  // Only admins can list users; editors fall back to the raw author id in the review banner.
+  const usersQuery = useToolQuery(
+    "user.list",
+    {},
+    { enabled: can(["users:manage"]) && postQuery.data?.status === "pending", retry: false }
+  );
 
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -255,6 +265,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const createMutation = useToolMutation("post.create");
   const updateMutation = useToolMutation("post.update");
   const publishMutation = useToolMutation("post.publish");
+  const submitMutation = useToolMutation("post.update");
   const deleteMutation = useToolMutation("post.delete");
   const restoreMutation = useToolMutation("post.restore");
   const revisionsQuery = useToolQuery("post.revisions", { id: id ?? "" }, { enabled: false });
@@ -332,6 +343,23 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
           toast.success(`${noun} published`);
           setStatus(updated.status === "trashed" ? "draft" : updated.status);
           setPublishedAtLocal(isoToLocalInput(updated.publishedAt));
+          invalidate("post.list");
+          invalidate("post.get");
+        },
+        onError: (err) => toast.error(errorMessage(err)),
+      }
+    );
+  }
+
+  /** Move a post between draft and pending review (submit / send back). */
+  function setReviewStatus(next: "draft" | "pending") {
+    if (!id) return;
+    submitMutation.mutate(
+      { id, status: next },
+      {
+        onSuccess: () => {
+          setStatus(next);
+          toast.success(next === "pending" ? "Submitted for review" : `${noun} sent back to draft`);
           invalidate("post.list");
           invalidate("post.get");
         },
@@ -419,6 +447,12 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
 
   const saving = createMutation.isPending || updateMutation.isPending;
   const isTrashed = postQuery.data?.status === "trashed";
+  const isPending = postQuery.data?.status === "pending";
+  const isReviewer = canReview(role);
+  const isContributor = role === "contributor";
+  const authorLabel = usersQuery.data?.find((u) => u.id === postQuery.data?.authorId)?.name
+    || postQuery.data?.authorId
+    || "someone";
   const siteUrl = (siteQuery.data?.settings.siteUrl ?? "").replace(/\/$/, "");
   const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
 
@@ -569,6 +603,20 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
               <Button variant="primary" disabled={saving} onClick={handleSave}>
                 {saving ? "Saving…" : "Update"}
               </Button>
+            ) : isContributor ? (
+              status === "pending" ? (
+                <Button variant="secondary" disabled>
+                  Submitted — awaiting review
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  disabled={submitMutation.isPending}
+                  onClick={() => setReviewStatus("pending")}
+                >
+                  {submitMutation.isPending ? "Submitting…" : "Submit for review"}
+                </Button>
+              )
             ) : (
               <Button variant="primary" disabled={publishMutation.isPending} onClick={handlePublish}>
                 {publishMutation.isPending ? "Publishing…" : "Publish"}
@@ -623,6 +671,16 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
         }
       />
 
+      {isPending && isReviewer && (
+        <PendingReviewBanner
+          noun={noun.toLowerCase()}
+          submittedBy={authorLabel}
+          busy={publishMutation.isPending || submitMutation.isPending}
+          onApprove={handlePublish}
+          onBackToDraft={() => setReviewStatus("draft")}
+        />
+      )}
+
       {isTrashed && (
         <TrashedBanner
           noun={noun}
@@ -676,9 +734,11 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
             <div>
               <Label htmlFor="post-status">Status</Label>
               <Select id="post-status" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="scheduled">Scheduled</option>
+                {editorStatusOptions(role, status).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </Select>
             </div>
             <div>

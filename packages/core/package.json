@@ -12,13 +12,14 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@wove/sdk": "workspace:*",
     "@anthropic-ai/sdk": "^0.122.0",
     "@google/genai": "^2.20.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "@wove/sdk": "workspace:*",
     "drizzle-orm": "^0.38.0",
     "fast-xml-parser": "^5.11.1",
     "hono": "^4.6.0",
+    "nodemailer": "^9.1.1",
     "openai": "^7.8.0",
     "sharp": "^0.35.4",
     "turndown": "^7.2.4",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/turndown": "^5.0.6",
     "drizzle-kit": "^0.30.0",
     "typescript": "^5.6.0"

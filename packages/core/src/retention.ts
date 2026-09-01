@@ -6,9 +6,9 @@
  * without bound. Each budget is a number of days; `0` keeps that kind forever.
  */
 import { readdirSync, rmSync, statSync } from "node:fs";
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, eq, isNotNull, lt, or } from "drizzle-orm";
 import type { DB } from "./db";
-import { aiUsage, auditLog, posts } from "./db/schema";
+import { aiUsage, auditLog, invites, passwordResets, posts } from "./db/schema";
 import { retentionDays, type Env } from "./env";
 import { importsDir } from "./import/jobs";
 
@@ -17,12 +17,20 @@ export interface RetentionSummary {
   aiUsage: number;
   trashedPosts: number;
   importFiles: number;
+  /** Spent invite + password-reset tokens (used, accepted, or long expired). */
+  tokens: number;
 }
 
-export const EMPTY_SUMMARY: RetentionSummary = { auditLog: 0, aiUsage: 0, trashedPosts: 0, importFiles: 0 };
+export const EMPTY_SUMMARY: RetentionSummary = { auditLog: 0, aiUsage: 0, trashedPosts: 0, importFiles: 0, tokens: 0 };
 
 export const retentionPruned = (s: RetentionSummary) =>
-  s.auditLog + s.aiUsage + s.trashedPosts + s.importFiles > 0;
+  s.auditLog + s.aiUsage + s.trashedPosts + s.importFiles + s.tokens > 0;
+
+/**
+ * Invite and reset tokens are dead the moment they are used or expire; keeping the rows a
+ * week longer is enough to answer "did that invite ever go out?" and no longer.
+ */
+export const TOKEN_GRACE_DAYS = 7;
 
 const cutoffIso = (days: number, now: Date) => new Date(now.getTime() - days * 86_400_000).toISOString();
 
@@ -73,6 +81,30 @@ export function runRetention(db: DB, env: Env = process.env, now = new Date()): 
     }
   }
 
+  // Not configurable: a spent single-use token has no retention value worth a knob.
+  try {
+    const cutoff = cutoffIso(TOKEN_GRACE_DAYS, now);
+    summary.tokens =
+      changes(
+        db.delete(invites)
+          .where(and(
+            or(isNotNull(invites.acceptedAt), lt(invites.expiresAt, now.toISOString()))!,
+            lt(invites.createdAt, cutoff),
+          )!)
+          .run(),
+      ) +
+      changes(
+        db.delete(passwordResets)
+          .where(and(
+            or(isNotNull(passwordResets.usedAt), lt(passwordResets.expiresAt, now.toISOString()))!,
+            lt(passwordResets.createdAt, cutoff),
+          )!)
+          .run(),
+      );
+  } catch (e) {
+    console.error("[retention] tokens", (e as Error).message);
+  }
+
   if (days.imports > 0) {
     const dir = importsDir();
     const cutoffMs = now.getTime() - days.imports * 86_400_000;
@@ -101,6 +133,7 @@ export function logRetention(summary: RetentionSummary): void {
   if (!retentionPruned(summary)) return;
   console.log(
     `[retention] pruned ${summary.auditLog} audit, ${summary.aiUsage} ai_usage, ` +
-      `${summary.trashedPosts} trashed post(s), ${summary.importFiles} import file(s)`,
+      `${summary.trashedPosts} trashed post(s), ${summary.importFiles} import file(s), ` +
+      `${summary.tokens} spent token(s)`,
   );
 }

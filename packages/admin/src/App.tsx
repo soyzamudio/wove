@@ -2,6 +2,11 @@ import { Routes, Route } from "react-router-dom";
 import { RequireAuth } from "./components/RequireAuth";
 import { Setup } from "./pages/Setup";
 import { Login } from "./pages/Login";
+import { AcceptInvite } from "./pages/AcceptInvite";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
+import { Profile } from "./pages/Profile";
+import { Users } from "./pages/Users";
 import { Dashboard } from "./pages/Dashboard";
 import { PostsList } from "./pages/PostsList";
 import { PostEditor } from "./pages/PostEditor";
@@ -14,12 +19,16 @@ import { Menus } from "./pages/Menus";
 import { Tools } from "./pages/Tools";
 import { ImportExport } from "./pages/ImportExport";
 import { Templates } from "./pages/Templates";
+import { Redirects } from "./pages/Redirects";
 
 export function App() {
   return (
     <Routes>
       <Route path="/setup" element={<Setup />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Dashboard />} />
@@ -37,8 +46,11 @@ export function App() {
         <Route path="/media" element={<Media />} />
         <Route path="/agents" element={<Agents />} />
         <Route path="/audit" element={<Audit />} />
+        <Route path="/redirects" element={<Redirects />} />
         <Route path="/menus" element={<Menus />} />
         <Route path="/templates" element={<Templates />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/:tab" element={<Settings />} />
         <Route path="/tools" element={<Tools />} />

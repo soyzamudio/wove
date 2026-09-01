@@ -1,8 +1,11 @@
 import { and, desc, eq, like, ne, or, inArray } from "drizzle-orm";
-import { BlocksDoc, ToolCatalog, ToolDescriptions, type PostFormat } from "@wove/sdk";
-import { posts, postTerms, revisions, terms as termsTable } from "../db/schema";
+import { BlocksDoc, ToolCatalog, ToolDescriptions, type Post, type PostFormat } from "@wove/sdk";
+import { posts, postTerms, revisions, terms as termsTable, users } from "../db/schema";
 import { newId, nowIso } from "../ids";
-import { defineTool, badRequest, notFound, type Ctx } from "./registry";
+import { defineTool, badRequest, notFound, ToolError, type Ctx } from "./registry";
+import { assertCanEditPost, assertStatusAllowed, isOwnerScoped, ownsPost } from "./permissions";
+import { adminBaseUrl } from "../env";
+import { brandFor, pendingPostEmail, sendEmailQuietly } from "../email";
 import {
   decodeCursor, encodeCursor, hydratePost, hydratePosts, parseSeo, setPostTerms, uniqueSlug,
 } from "./shared";
@@ -64,6 +67,37 @@ function getPostRow(ctx: Ctx, id: string) {
   const row = ctx.db.select().from(posts).where(eq(posts.id, id)).get();
   if (!row) throw notFound(`No post with id "${id}"`);
   return row;
+}
+
+/** Only these two statuses are "live"; `pending` is a review queue, not a publish. */
+const isLive = (status: string) => status === "published" || status === "scheduled";
+
+/**
+ * A post entering `pending` is a request for a human: emit the hook and mail everyone who
+ * can act on it. Fire-and-forget — a mail outage must never fail the contributor's save.
+ */
+async function announcePending(ctx: Ctx, post: Post): Promise<void> {
+  await ctx.hooks.emit("post.pending", { post, ctx: { actor: ctx.actor, channel: ctx.channel } });
+  let reviewers: { email: string }[] = [];
+  try {
+    reviewers = ctx.db
+      .select({ email: users.email })
+      .from(users)
+      .where(inArray(users.role, ["admin", "editor"]))
+      .all();
+  } catch {
+    return;
+  }
+  if (reviewers.length === 0) return;
+  const authorName = post.authorId
+    ? ctx.db.select({ name: users.name }).from(users).where(eq(users.id, post.authorId)).get()?.name ?? null
+    : null;
+  const body = pendingPostEmail(brandFor(ctx.db), {
+    title: post.title,
+    authorName,
+    reviewUrl: `${adminBaseUrl()}/${post.type === "page" ? "pages" : "posts"}/${post.id}`,
+  });
+  for (const r of reviewers) sendEmailQuietly({ to: r.email, ...body });
 }
 
 export const postList = defineTool({
@@ -132,6 +166,7 @@ export const postCreate = defineTool({
   output: ToolCatalog["post.create"].output,
   scopes: ToolCatalog["post.create"].scopes,
   handler: async (ctx, input) => {
+    assertStatusAllowed(ctx, input.status);
     const ts = nowIso();
     const id = newId();
     const write = resolveFormat(input);
@@ -161,7 +196,8 @@ export const postCreate = defineTool({
     const post = hydratePost(ctx.db, getPostRow(ctx, id));
     const hookCtx = { actor: ctx.actor, channel: ctx.channel };
     await ctx.hooks.emit("post.afterSave", { post, created: true, ctx: hookCtx });
-    if (post.status !== "draft") await ctx.hooks.emit("post.publish", { post, ctx: hookCtx });
+    if (isLive(post.status)) await ctx.hooks.emit("post.publish", { post, ctx: hookCtx });
+    if (post.status === "pending") await announcePending(ctx, post);
     return post;
   },
 });
@@ -174,6 +210,8 @@ export const postUpdate = defineTool({
   scopes: ToolCatalog["post.update"].scopes,
   handler: async (ctx, input) => {
     const prev = getPostRow(ctx, input.id);
+    assertCanEditPost(ctx, prev);
+    assertStatusAllowed(ctx, input.status);
     const prevPost = hydratePost(ctx.db, prev);
     const ts = nowIso();
 
@@ -226,9 +264,10 @@ export const postUpdate = defineTool({
     const post = hydratePost(ctx.db, getPostRow(ctx, prev.id));
     const hookCtx = { actor: ctx.actor, channel: ctx.channel };
     await ctx.hooks.emit("post.afterSave", { post, created: false, ctx: hookCtx });
-    if (post.status !== "draft" && prevPost.status !== post.status) {
+    if (isLive(post.status) && prevPost.status !== post.status) {
       await ctx.hooks.emit("post.publish", { post, ctx: hookCtx });
     }
+    if (post.status === "pending" && prevPost.status !== "pending") await announcePending(ctx, post);
     return post;
   },
 });
@@ -250,6 +289,7 @@ export const postDelete = defineTool({
   scopes: ToolCatalog["post.delete"].scopes,
   handler: async (ctx, input) => {
     const row = getPostRow(ctx, input.id);
+    assertCanEditPost(ctx, row, "delete");
     const hookCtx = { actor: ctx.actor, channel: ctx.channel };
     if (input.permanent) {
       purgePosts(ctx, [row.id]);
@@ -272,6 +312,7 @@ export const postRestore = defineTool({
   scopes: ToolCatalog["post.restore"].scopes,
   handler: async (ctx, input) => {
     const prev = getPostRow(ctx, input.id);
+    assertCanEditPost(ctx, prev, "restore");
     ctx.db.update(posts)
       .set({ status: "draft", trashedAt: null, updatedAt: nowIso() })
       .where(eq(posts.id, prev.id))
@@ -305,7 +346,15 @@ export const postBulk = defineTool({
   output: ToolCatalog["post.bulk"].output,
   scopes: ToolCatalog["post.bulk"].scopes,
   handler: async (ctx, input) => {
-    const rows = ctx.db.select().from(posts).where(inArray(posts.id, input.ids)).all();
+    // `post.bulk` only declares content:write, so publishing through it must re-check the
+    // publish scope — otherwise it is a hole around `post.publish` for contributors.
+    if (input.action === "publish" && !ctx.actor.scopes.includes("*") && !ctx.actor.scopes.includes("content:publish")) {
+      throw new ToolError("forbidden", "Missing scope(s): content:publish", {
+        required: ["content:publish"], granted: ctx.actor.scopes,
+      });
+    }
+    const all = ctx.db.select().from(posts).where(inArray(posts.id, input.ids)).all();
+    const rows = isOwnerScoped(ctx) ? all.filter((r) => ownsPost(ctx, r)) : all;
     if (rows.length === 0) return { ok: true as const, affected: 0 };
     const ts = nowIso();
     const hookCtx = { actor: ctx.actor, channel: ctx.channel };
@@ -347,6 +396,7 @@ export const postPublish = defineTool({
   scopes: ToolCatalog["post.publish"].scopes,
   handler: async (ctx, input) => {
     const prev = getPostRow(ctx, input.id);
+    assertCanEditPost(ctx, prev, "publish");
     const now = new Date();
     const at = input.at ? new Date(input.at) : now;
     const scheduled = at.getTime() > now.getTime();

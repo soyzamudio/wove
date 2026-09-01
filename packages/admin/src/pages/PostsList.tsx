@@ -22,12 +22,13 @@ import {
   errorMessage,
 } from "../components/ui";
 
-type StatusFilter = "all" | "draft" | "published" | "scheduled" | "trashed";
+type StatusFilter = "all" | "draft" | "pending" | "published" | "scheduled" | "trashed";
 type BulkAction = "trash" | "restore" | "delete" | "publish" | "draft";
 
 const TABS: { label: string; value: StatusFilter }[] = [
   { label: "All", value: "all" },
   { label: "Draft", value: "draft" },
+  { label: "Pending", value: "pending" },
   { label: "Published", value: "published" },
   { label: "Scheduled", value: "scheduled" },
   { label: "Trash", value: "trashed" },
@@ -79,6 +80,22 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
     q: q || undefined,
     limit: 50,
   });
+
+  // Cheap count for the "Pending" segment badge — one capped list, loaded alongside the tab data.
+  const pendingQuery = useToolQuery(
+    "post.list",
+    { type: postType, status: "pending", limit: 50 },
+    { enabled: !list.isLoading }
+  );
+  const pendingCount = pendingQuery.data?.items.length ?? 0;
+
+  const tabs = useMemo(
+    () =>
+      TABS.map((t) =>
+        t.value === "pending" && pendingCount > 0 ? { ...t, label: `Pending (${pendingCount})` } : t
+      ),
+    [pendingCount]
+  );
 
   const items: Post[] = list.data?.items ?? [];
   const visibleIds = useMemo(() => items.map((p) => p.id), [items]);
@@ -252,7 +269,7 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SegmentedControl
-          options={TABS}
+          options={tabs}
           value={status}
           onChange={(next) => {
             setStatus(next);
@@ -393,7 +410,16 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-right text-zinc-500 dark:text-zinc-400">
-                        {isTrash ? (
+                        {post.status === "pending" && !isTrash ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <Link to={`${basePath}/${post.id}`}>
+                              <Button size="sm" variant="secondary">
+                                Review
+                              </Button>
+                            </Link>
+                            <span>{relativeTime(post.updatedAt)}</span>
+                          </div>
+                        ) : isTrash ? (
                           <div className="flex justify-end gap-1.5">
                             <Button
                               size="sm"

@@ -93,3 +93,27 @@ export function retentionDays(env: Env = process.env): RetentionDays {
     imports: int(env.WOVE_IMPORTS_RETENTION_DAYS, 30),
   };
 }
+
+/**
+ * Where the admin UI lives, for links inside emails. In production the SPA is served by
+ * core under `/admin`; in development it is the Vite dev server on 5173. Getting this
+ * wrong sends invitees to the public site with a token they cannot use.
+ */
+export function adminBaseUrl(env: Env = process.env): string {
+  const site = env.WOVE_SITE_URL?.trim().replace(/\/+$/, "");
+  if (isProduction(env) && site) return `${site}/admin`;
+  return "http://localhost:5173";
+}
+
+export type EmailDriverName = "console" | "smtp" | "resend";
+
+/** `console` unless asked otherwise, so a fresh checkout can complete every email flow. */
+export function emailDriverName(env: Env = process.env): EmailDriverName {
+  const raw = env.WOVE_EMAIL_DRIVER?.trim().toLowerCase();
+  if (raw === "smtp" || raw === "resend" || raw === "console") return raw;
+  if (raw) console.warn(`[env] unknown WOVE_EMAIL_DRIVER "${raw}" — falling back to console`);
+  return "console";
+}
+
+export const emailFrom = (env: Env = process.env) =>
+  env.WOVE_EMAIL_FROM?.trim() || "Wove <no-reply@localhost>";

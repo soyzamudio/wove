@@ -80,6 +80,7 @@ export function Badge({
 
 const STATUS_TONES: Record<string, BadgeTone> = {
   draft: "neutral",
+  pending: "sky",
   published: "green",
   scheduled: "amber",
   trashed: "red",

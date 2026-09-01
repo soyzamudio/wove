@@ -5,6 +5,7 @@ import { taxonomyTools } from "./taxonomy";
 import { mediaTools } from "./media";
 import { settingsTools } from "./settings";
 import { agentTools } from "./agents";
+import { userTools } from "./users";
 import { auditTools } from "./audit";
 import { aiTools } from "./ai";
 import { blockTools } from "./blocks";
@@ -15,9 +16,10 @@ import { importTools } from "./import";
 import { exportTools } from "./export";
 import { chatTools } from "./chat";
 import { templateTools } from "./templates";
+import { redirectTools } from "./redirects";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools, ...templateTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...userTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools, ...templateTools, ...redirectTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */
@@ -36,3 +38,4 @@ export { readDesign, writeDesign } from "./design";
 export { buildSiteExport } from "./export";
 export { decodeWxr, MAX_WXR_BYTES } from "./import";
 export { BUILTIN_TEMPLATES } from "../templates";
+export { publicRedirectRoutes, resolveRedirect, record404, shouldReport404 } from "./redirects";

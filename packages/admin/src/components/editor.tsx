@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Image as ImageIcon, RotateCcw, Trash2, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Image as ImageIcon, RotateCcw, Trash2, X } from "lucide-react";
 import type { ImageRef, Media, Post } from "@wove/sdk";
 import { relativeTime } from "../lib/time";
 import { SEO_DESCRIPTION_MAX, SEO_TITLE_MAX, counter, seoPreview } from "../lib/seo";
@@ -268,6 +268,40 @@ export function TrashedBanner({
       </Button>
       <Button variant="danger" size="sm" disabled={busy} onClick={onDeleteForever}>
         Delete permanently
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Shown to reviewers (admin/editor) on a post or page waiting for review.
+ * `submittedBy` is the author's name when it can be resolved, else their raw id.
+ */
+export function PendingReviewBanner({
+  noun,
+  submittedBy,
+  onApprove,
+  onBackToDraft,
+  busy,
+}: {
+  noun: string;
+  submittedBy: string;
+  onApprove: () => void;
+  onBackToDraft: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sm text-sky-900 dark:border-sky-900/70 dark:bg-sky-950/50 dark:text-sky-200">
+      <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="flex-1">
+        Awaiting review — this {noun} was submitted by{" "}
+        <span className="font-semibold">{submittedBy}</span>.
+      </span>
+      <Button variant="primary" size="sm" disabled={busy} onClick={onApprove}>
+        Approve &amp; publish
+      </Button>
+      <Button variant="secondary" size="sm" disabled={busy} onClick={onBackToDraft}>
+        Back to draft
       </Button>
     </div>
   );

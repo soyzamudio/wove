@@ -74,6 +74,21 @@ export function apiLogin(input: { email: string; password: string }): Promise<Me
   return authFetch("/api/auth/login", input);
 }
 
+/** Accept an invite: sets the name + password on the invited account and starts a session (like login). */
+export function apiAcceptInvite(input: { token: string; name: string; password: string }): Promise<MeResponse> {
+  return authFetch("/api/auth/accept-invite", input);
+}
+
+/** Request a password-reset link. Always resolves `{ ok: true }` — core never reveals whether the account exists. */
+export function apiForgotPassword(input: { email: string }): Promise<{ ok: true }> {
+  return authFetch("/api/auth/forgot", input);
+}
+
+/** Consume a reset token and set a new password. No session is started; the user logs in afterwards. */
+export function apiResetPassword(input: { token: string; password: string }): Promise<{ ok: true }> {
+  return authFetch("/api/auth/reset", input);
+}
+
 export function apiLogout(): Promise<{ ok: true }> {
   return authFetch("/api/auth/logout");
 }

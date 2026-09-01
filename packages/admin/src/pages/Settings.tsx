@@ -4,6 +4,7 @@ import type { Settings as SettingsType } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
 import { Button, Card, ErrorBanner, Input, Label, PageHeader, Spinner, Tabs, errorMessage } from "../components/ui";
+import { EmailStatusCard } from "../components/EmailStatusCard";
 import { SettingsAi } from "./SettingsAi";
 import { SettingsDesign } from "./SettingsDesign";
 
@@ -113,6 +114,8 @@ export function Settings() {
               </form>
             </Card>
           )}
+
+          <EmailStatusCard />
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import type { Actor, Scope } from "@wove/sdk";
+import type { Actor, Scope, UserRole } from "@wove/sdk";
 import type { DB } from "./db";
 import { agents, sessions, users } from "./db/schema";
 import { newId, nowIso, sha256 } from "./ids";
@@ -20,7 +20,7 @@ export interface Resolved {
 export const hashPassword = (pw: string) => Bun.password.hash(pw);
 export const verifyPassword = (pw: string, hash: string) => Bun.password.verify(pw, hash);
 
-export function userActor(u: { id: string; role: "admin" | "editor" }): Actor {
+export function userActor(u: { id: string; role: UserRole }): Actor {
   return { kind: "user", id: u.id, scopes: ROLE_SCOPES[u.role] };
 }
 
@@ -98,7 +98,7 @@ export function readSessionId(req: Request): string | undefined {
 }
 
 export async function createUser(
-  db: DB, input: { email: string; name: string; password: string; role?: "admin" | "editor" },
+  db: DB, input: { email: string; name: string; password: string; role?: UserRole },
 ) {
   const row = {
     id: newId(),
@@ -114,4 +114,31 @@ export async function createUser(
 
 export function publicUser(u: typeof users.$inferSelect) {
   return { id: u.id, email: u.email, name: u.name, role: u.role, createdAt: u.createdAt };
+}
+
+// ---------------------------------------------------------------- invite & reset tokens
+
+/** 7 days: long enough to survive a weekend, short enough that a leaked mailbox ages out. */
+export const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+/** 1 hour, the usual budget for a password-reset link. */
+export const RESET_TTL_MS = 1000 * 60 * 60;
+
+/**
+ * Tokens are stored only as a sha256 hash, exactly like agent API keys: a database dump
+ * never yields a working invite or reset link.
+ */
+export const newInviteToken = () => `wove_inv_${newId(40)}`;
+export const newResetToken = () => `wove_rst_${newId(40)}`;
+export const tokenHash = sha256;
+
+/** Sign every session of a user out. `exceptId` keeps the caller's own session alive. */
+export function deleteUserSessions(db: DB, userId: string, exceptId?: string): number {
+  const rows = db.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, userId)).all();
+  let n = 0;
+  for (const r of rows) {
+    if (r.id === exceptId) continue;
+    db.delete(sessions).where(eq(sessions.id, r.id)).run();
+    n++;
+  }
+  return n;
 }
