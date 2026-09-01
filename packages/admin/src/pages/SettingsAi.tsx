@@ -83,7 +83,11 @@ export function SettingsAi() {
   });
 
   const loadModels = useToolMutation("ai.models", {
-    onSuccess: (list) => setModels(list),
+    onSuccess: (list) => {
+      setModels(list);
+      // A provider switch clears the model; pick the first option for the new provider.
+      setForm((f) => (f.model === "" && list[0] ? { ...f, model: list[0].id } : f));
+    },
     onError: (err) => toast.error(errorMessage(err)),
   });
 
@@ -138,7 +142,7 @@ export function SettingsAi() {
                 <Label>Provider</Label>
                 <select
                   value={form.provider}
-                  onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value as AiProvider }))}
+                  onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value as AiProvider, model: "" }))}
                   className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                 >
                   {AiProvider.options.map((p) => (
@@ -152,12 +156,29 @@ export function SettingsAi() {
               <div>
                 <Label>Model</Label>
                 <div className="flex items-center gap-2">
-                  <Input
-                    list="ai-model-options"
-                    value={form.model}
-                    onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
-                    placeholder="e.g. claude-opus-5"
-                  />
+                  {models.length > 0 ? (
+                    <select
+                      value={form.model}
+                      onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
+                      className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    >
+                      {/* keep a saved custom id selectable even if the provider list doesn't include it */}
+                      {form.model && !models.some((m) => m.id === form.model) && (
+                        <option value={form.model}>{form.model}</option>
+                      )}
+                      {models.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name ?? m.id}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      value={form.model}
+                      onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
+                      placeholder={loadModels.isPending ? "Loading models…" : "Model id, e.g. llama3.1"}
+                    />
+                  )}
                   <Button
                     type="button"
                     variant="secondary"
@@ -167,13 +188,6 @@ export function SettingsAi() {
                     {loadModels.isPending ? "Loading…" : "Refresh"}
                   </Button>
                 </div>
-                <datalist id="ai-model-options">
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name ?? m.id}
-                    </option>
-                  ))}
-                </datalist>
                 {loadModels.isError && (
                   <div className="mt-1 text-xs text-red-600 dark:text-red-400">{errorMessage(loadModels.error)}</div>
                 )}
