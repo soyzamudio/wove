@@ -190,7 +190,7 @@ export function Dashboard() {
               {site.isError && <ErrorBanner message={errorMessage(site.error)} />}
               {site.data && (
                 <div>
-                  <StatRow label="wove version" value={site.data.version} tone="green" />
+                  <StatRow label="Wove version" value={site.data.version} tone="green" />
                   <StatRow label="Posts" value={site.data.counts.posts} tone="neutral" />
                   <StatRow label="Pages" value={site.data.counts.pages} tone="neutral" />
                   <StatRow label="Media" value={site.data.counts.media} tone="neutral" />
