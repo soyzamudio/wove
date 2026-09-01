@@ -24,8 +24,8 @@ describe("describeSchema", () => {
     expect(field(fields, "layout").optional).toBe(true);
 
     // long-form prose gets a textarea, short strings do not
-    expect(field(fields, "subheadline").kind).toEqual({ kind: "string", multiline: true });
-    expect(field(fields, "headline").kind).toEqual({ kind: "string", multiline: false });
+    expect(field(fields, "subheadline").kind).toEqual({ kind: "string", multiline: true, markdown: false });
+    expect(field(fields, "headline").kind).toEqual({ kind: "string", multiline: false, markdown: false });
 
     expect(field(fields, "layout").kind).toEqual({ kind: "enum", options: ["split", "centered", "background"] });
     expect(field(fields, "buttons").kind).toEqual({ kind: "array", item: { kind: "button" }, max: 3 } as any);
@@ -46,9 +46,9 @@ describe("describeSchema", () => {
     expect(items.item.fields.find((f: FieldDesc) => f.name === "body").kind.multiline).toBe(true);
   });
 
-  test("markdown: a z.string().describe('Markdown') is multiline", () => {
+  test("markdown: a z.string().describe('Markdown') is multiline and flagged as markdown", () => {
     const fields = describeSchema(BlockProps.markdown);
-    expect(field(fields, "markdown").kind).toEqual({ kind: "string", multiline: true });
+    expect(field(fields, "markdown").kind).toEqual({ kind: "string", multiline: true, markdown: true });
     expect(field(fields, "width").kind).toEqual({ kind: "enum", options: ["content", "wide"] });
   });
 

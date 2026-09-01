@@ -18,9 +18,9 @@ import {
   Spinner,
   StatRow,
   StatusPill,
-  Textarea,
   errorMessage,
 } from "../components/ui";
+import { RichMarkdownEditor } from "../components/RichMarkdownEditor";
 import { slugify } from "../lib/slug";
 
 const HERO_BTN =
@@ -105,13 +105,14 @@ export function Dashboard() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="quick-content">Content</Label>
-                  <Textarea
-                    id="quick-content"
-                    rows={5}
+                  <Label>Content</Label>
+                  <RichMarkdownEditor
                     value={quickContent}
-                    onChange={(e) => setQuickContent(e.target.value)}
-                    placeholder="Start writing in Markdown…"
+                    onChange={setQuickContent}
+                    variant="compact"
+                    placeholder="Start writing…"
+                    surfaceId="dashboard-quick-draft"
+                    ariaLabel="Content"
                   />
                 </div>
                 <Button

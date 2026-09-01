@@ -8,7 +8,7 @@
 import { z } from "zod";
 
 export type FieldKind =
-  | { kind: "string"; multiline: boolean }
+  | { kind: "string"; multiline: boolean; markdown?: boolean }
   | { kind: "number" }
   | { kind: "boolean" }
   | { kind: "enum"; options: string[] }
@@ -83,8 +83,10 @@ export function describeKind(schema: z.ZodTypeAny, name = ""): FieldKind {
   const t = typeName(inner);
 
   switch (t) {
-    case "ZodString":
-      return { kind: "string", multiline: MULTILINE.has(name) || description === "Markdown" };
+    case "ZodString": {
+      const isMarkdown = description === "Markdown";
+      return { kind: "string", multiline: MULTILINE.has(name) || isMarkdown, markdown: isMarkdown };
+    }
     case "ZodNumber":
       return { kind: "number" };
     case "ZodBoolean":

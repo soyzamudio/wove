@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Image as ImageIcon, Plus, Trash2 } from "lucide
 import { BlockProps, type BlockType, type Media } from "@wove/sdk";
 import { describeSchema, emptyValue, type FieldDesc, type FieldKind } from "../lib/schemaIntrospect";
 import { MediaPicker } from "./MediaPicker";
+import { RichMarkdownEditor } from "./RichMarkdownEditor";
 import { IconButton, Input, Label, Select, Textarea, cx } from "./ui";
 
 type Props = Record<string, unknown>;
@@ -115,6 +116,17 @@ function KindEditor({
 }) {
   switch (kind.kind) {
     case "string":
+      if (kind.markdown) {
+        return (
+          <RichMarkdownEditor
+            value={(value as string) ?? ""}
+            onChange={(md) => onChange(md)}
+            variant="compact"
+            placeholder="Write Markdown…"
+            surfaceId={id ? `props-${id}` : "props-markdown"}
+          />
+        );
+      }
       return kind.multiline ? (
         <Textarea id={id} rows={6} value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
       ) : (

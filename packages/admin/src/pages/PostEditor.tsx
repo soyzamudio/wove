@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { marked } from "marked";
 import { ExternalLink, History, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
 import type { ImageRef, Post } from "@wove/sdk";
 import { streamAi, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
@@ -26,16 +25,22 @@ import {
   Input,
   Label,
   PageHeader,
-  SegmentedControl,
   Select,
   SlideOver,
   Spinner,
   Textarea,
   errorMessage,
 } from "../components/ui";
+import {
+  RichMarkdownEditor,
+  type RichMarkdownEditorHandle,
+  type RichSelection,
+} from "../components/RichMarkdownEditor";
 
 type Status = "draft" | "published" | "scheduled";
-type ViewMode = "edit" | "preview" | "split";
+
+/** AI streams faster than a ProseMirror re-parse is worth doing; ~4 repaints/s. */
+const STREAM_REPAINT_MS = 250;
 
 const REWRITE_CHIPS = ["Make it shorter", "Fix grammar", "More formal", "Add a summary"];
 
@@ -82,23 +87,14 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const [showRevisions, setShowRevisions] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<ViewMode>(() =>
-    typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches ? "split" : "edit"
-  );
 
   // ---- AI: draft / rewrite -------------------------------------------------
   const aiConfigQuery = useToolQuery("ai.config", {});
   const aiConfigured = !!aiConfigQuery.data && aiConfigQuery.data.keySource !== "none";
 
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
-  const hasSelection = selection.end > selection.start;
-
-  function trackSelection() {
-    const el = contentRef.current;
-    if (!el) return;
-    setSelection({ start: el.selectionStart, end: el.selectionEnd });
-  }
+  const editorRef = useRef<RichMarkdownEditorHandle>(null);
+  const [selection, setSelection] = useState<RichSelection | null>(null);
+  const hasSelection = !!selection && selection.text.trim().length > 0;
 
   const [showDraft, setShowDraft] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState("");
@@ -107,11 +103,17 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
 
   function startDraft() {
     if (!draftPrompt.trim() || drafting) return;
-    const hasExistingContent = content.trim().length > 0;
-    const insertPos = hasExistingContent ? (contentRef.current?.selectionStart ?? content.length) : 0;
-    const prefix = hasExistingContent ? content.slice(0, insertPos) : "";
-    const suffix = hasExistingContent ? content.slice(insertPos) : "";
+    // Stream into the end of whatever is already written; the editor re-parses
+    // the whole markdown string, so we repaint on a timer instead of per token.
+    const base = editorRef.current?.getMarkdown() ?? content;
+    const prefix = base.trim() ? (base.endsWith("\n") ? base : base + "\n\n") : "";
     let acc = "";
+    let painted = 0;
+    const paint = () => {
+      painted = Date.now();
+      editorRef.current?.setMarkdown(prefix + acc);
+      setContent(prefix + acc);
+    };
     const controller = new AbortController();
     draftAbortRef.current = controller;
     setDrafting(true);
@@ -121,14 +123,16 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
         signal: controller.signal,
         onToken: (t) => {
           acc += t;
-          setContent(prefix + acc + suffix);
+          if (Date.now() - painted >= STREAM_REPAINT_MS) paint();
         },
         onDone: (info) => {
+          paint();
           setDrafting(false);
           draftAbortRef.current = null;
           toast.success(`Generated ${info.usage.outputTokens} tokens (${info.model})`);
         },
         onError: (e) => {
+          paint();
           setDrafting(false);
           draftAbortRef.current = null;
           toast.error(e.message);
@@ -151,9 +155,8 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   function startRewrite(instruction: string) {
     const text = instruction.trim();
     if (!text || rewriting) return;
-    const { start, end } = selection;
-    const selectedText = content.slice(start, end);
-    if (!selectedText) return;
+    const selectedText = selection?.text ?? "";
+    if (!selectedText.trim()) return;
     let acc = "";
     const controller = new AbortController();
     rewriteAbortRef.current = controller;
@@ -163,11 +166,12 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
       {
         signal: controller.signal,
         onToken: (t) => {
-          // Accumulate only — replace the selection once on done rather than fighting the caret mid-stream.
+          // Accumulate only — swap the selection once on done rather than
+          // fighting the caret mid-stream.
           acc += t;
         },
         onDone: (info) => {
-          setContent((cur) => cur.slice(0, start) + acc + cur.slice(end));
+          editorRef.current?.replaceSelection(acc);
           setRewriting(false);
           rewriteAbortRef.current = null;
           setShowRewrite(false);
@@ -247,15 +251,6 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
     setFeaturedImage(data.featuredImage ?? null);
     setSeo(data.seo ?? EMPTY_SEO);
   }
-
-  const html = useMemo(() => {
-    try {
-      const result = marked.parse(content, { async: false } as any);
-      return typeof result === "string" ? result : "";
-    } catch {
-      return "";
-    }
-  }, [content]);
 
   const createMutation = useToolMutation("post.create");
   const updateMutation = useToolMutation("post.update");
@@ -660,40 +655,20 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
 
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Content (markdown)
+              Content
             </span>
-            <SegmentedControl
-              ariaLabel="Editor view"
-              value={view}
-              onChange={setView}
-              options={[
-                { label: "Edit", value: "edit" },
-                { label: "Preview", value: "preview" },
-                { label: "Split", value: "split" },
-              ]}
-            />
           </div>
 
-          <div className={view === "split" ? "grid grid-cols-1 gap-4 xl:grid-cols-2" : "grid grid-cols-1 gap-4"}>
-            {view !== "preview" && (
-              <textarea
-                ref={contentRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onSelect={trackSelection}
-                onKeyUp={trackSelection}
-                onMouseUp={trackSelection}
-                rows={24}
-                aria-label="Markdown content"
-                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-mono text-sm text-zinc-900 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
-              />
-            )}
-            {view !== "edit" && (
-              <Card className="min-h-[16rem] overflow-x-auto px-5 py-4">
-                <div className="wv-prose text-zinc-800 dark:text-zinc-200" dangerouslySetInnerHTML={{ __html: html }} />
-              </Card>
-            )}
-          </div>
+          <RichMarkdownEditor
+            ref={editorRef}
+            value={content}
+            onChange={setContent}
+            onSelectionChange={setSelection}
+            variant="full"
+            surfaceId={`post-content-${postType}`}
+            placeholder={`Write your ${noun}… Markdown shortcuts work: # heading, - list, > quote.`}
+            ariaLabel="Content"
+          />
         </div>
 
         <aside className="space-y-4">
