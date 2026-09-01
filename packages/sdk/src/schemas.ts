@@ -24,7 +24,7 @@ export const Actor = z.object({
 });
 export type Actor = z.infer<typeof Actor>;
 
-export const Channel = z.enum(["ui", "rest", "mcp", "system"]);
+export const Channel = z.enum(["ui", "rest", "mcp", "system", "chat"]);
 export type Channel = z.infer<typeof Channel>;
 
 // ---------- content ----------
@@ -262,3 +262,30 @@ export const SiteExport = z.object({
   posts: z.array(Post),
 });
 export type SiteExport = z.infer<typeof SiteExport>;
+
+// ---------- site chat ----------
+export const ChatRole = z.enum(["user", "assistant"]);
+export const ChatToolCall = z.object({
+  id: z.string(),
+  tool: z.string(),
+  input: z.unknown(),
+  kind: z.enum(["read", "mutation"]),
+  status: z.enum(["executed", "proposed", "applied", "rejected", "failed"]),
+  result: z.unknown().nullable().describe("tool output for executed/applied calls; error message on failed"),
+  preview: z.object({ title: z.string(), diff: z.string().nullable() }).nullable().describe("human-readable summary; unified diff for content changes"),
+});
+export type ChatToolCall = z.infer<typeof ChatToolCall>;
+
+export const ChatMessage = z.object({
+  id: Id,
+  role: ChatRole,
+  content: z.string().describe("assistant/user text (Markdown)"),
+  toolCalls: z.array(ChatToolCall).default([]),
+  planPending: z.boolean().default(false).describe("true while proposed mutations await approval"),
+  usage: AiUsage.nullable().default(null),
+  ts: ISODate,
+});
+export type ChatMessage = z.infer<typeof ChatMessage>;
+
+export const ChatThread = z.object({ id: Id, title: z.string(), createdAt: ISODate, updatedAt: ISODate });
+export type ChatThread = z.infer<typeof ChatThread>;

@@ -4,14 +4,25 @@ import { FilePlus2, Search } from "lucide-react";
 import { NAV_GROUPS } from "./nav";
 import { cx } from "./ui";
 
-interface Command {
+export interface Command {
   label: string;
   hint?: string;
-  to: string;
+  /** Navigate here… */
+  to?: string;
+  /** …or run an action in place (e.g. open the site-chat panel). */
+  run?: () => void;
 }
 
 /** Small dependency-free command palette: filter, ↑/↓, Enter to go, Esc to close. */
-export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function CommandPalette({
+  open,
+  onClose,
+  extraCommands,
+}: {
+  open: boolean;
+  onClose: () => void;
+  extraCommands?: Command[];
+}) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
@@ -26,9 +37,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       { label: "New post", hint: "Create", to: "/posts/new" },
       { label: "New page", hint: "Create", to: "/pages/new" },
       { label: "Design", hint: "Settings", to: "/settings/design" },
+      ...(extraCommands ?? []),
       ...nav,
     ];
-  }, []);
+    // `extraCommands` is a literal at the call site; depend on its labels, not identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(extraCommands ?? []).map((c) => c.label).join("|")]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -61,7 +75,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   function run(cmd: Command | undefined) {
     if (!cmd) return;
     onClose();
-    navigate(cmd.to);
+    if (cmd.run) cmd.run();
+    else if (cmd.to) navigate(cmd.to);
   }
 
   return (
@@ -98,7 +113,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         </div>
         <ul className="wv-scroll max-h-80 overflow-y-auto p-1.5">
           {results.map((cmd, i) => (
-            <li key={cmd.to + cmd.label}>
+            <li key={(cmd.to ?? "") + cmd.label}>
               <button
                 type="button"
                 onMouseEnter={() => setIndex(i)}

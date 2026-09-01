@@ -1,4 +1,4 @@
-import { createClient, WoveError, type ImportJob, type ImportOptions, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@wove/sdk";
+import { createClient, WoveError, type ChatMessage, type ChatToolCall, type ImportJob, type ImportOptions, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@wove/sdk";
 import { useMutation, useQuery, useQueryClient, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
 
 /**
@@ -275,6 +275,116 @@ export async function streamAi(body: AiStreamBody, handlers: AiStreamHandlers = 
         if (evt.event === "token") onToken?.(data.text ?? "");
         else if (evt.event === "done") onDone?.(data as AiStreamDone);
         else if (evt.event === "error") onError?.(data as AiStreamErrorInfo);
+      }
+    }
+  } catch (err: any) {
+    if (err?.name === "AbortError") return;
+    onError?.({ code: "network_error", message: err?.message ?? String(err) });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Site chat streaming — POST /api/chat/stream (text/event-stream). Same shape
+// as the AI stream above but with a richer event set: the agent loop reports
+// thread creation, tokens, tool calls, and the final persisted message.
+// ---------------------------------------------------------------------------
+
+export interface ChatStreamBody {
+  /** Omit to start a new thread; core replies with a `thread` event carrying the new id. */
+  threadId?: string;
+  message: string;
+}
+
+export interface ChatStreamThread {
+  threadId: string;
+  title: string;
+}
+
+export interface ChatStreamDone {
+  usage: unknown;
+}
+
+export interface ChatStreamHandlers {
+  onThread?: (info: ChatStreamThread) => void;
+  onToken?: (text: string) => void;
+  onToolCall?: (call: ChatToolCall) => void;
+  onMessage?: (message: ChatMessage) => void;
+  onDone?: (info: ChatStreamDone) => void;
+  onError?: (info: AiStreamErrorInfo) => void;
+}
+
+/**
+ * Streams `POST /api/chat/stream`, routing each SSE event to its handler.
+ * Setup failures (non-2xx) arrive as plain JSON and surface through onError.
+ * Aborting via `signal` resolves quietly — the caller already knows it stopped.
+ */
+export async function streamChat(
+  body: ChatStreamBody,
+  handlers: ChatStreamHandlers = {},
+  signal?: AbortSignal
+): Promise<void> {
+  const { onThread, onToken, onToolCall, onMessage, onDone, onError } = handlers;
+  let res: Response;
+  try {
+    res = await channelFetch(`${API_URL}/api/chat/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") return;
+    onError?.({ code: "network_error", message: err?.message ?? String(err) });
+    return;
+  }
+
+  if (!res.ok || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as any;
+    onError?.({ code: data.code ?? "error", message: data.message ?? res.statusText });
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = parseSseBuffer(buffer);
+      buffer = rest;
+      for (const evt of events) {
+        if (!evt.data) continue;
+        let data: any;
+        try {
+          data = JSON.parse(evt.data);
+        } catch {
+          continue;
+        }
+        switch (evt.event) {
+          case "thread":
+            onThread?.(data as ChatStreamThread);
+            break;
+          case "token":
+            onToken?.(data.text ?? "");
+            break;
+          case "tool_call":
+            if (data.call) onToolCall?.(data.call as ChatToolCall);
+            break;
+          case "message":
+            if (data.message) onMessage?.(data.message as ChatMessage);
+            break;
+          case "done":
+            onDone?.(data as ChatStreamDone);
+            break;
+          case "error":
+            onError?.(data as AiStreamErrorInfo);
+            break;
+          default:
+            break;
+        }
       }
     }
   } catch (err: any) {

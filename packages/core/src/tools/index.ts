@@ -13,9 +13,10 @@ import { menuTools } from "./menus";
 import { designTools } from "./design";
 import { importTools } from "./import";
 import { exportTools } from "./export";
+import { chatTools } from "./chat";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */

@@ -15,6 +15,7 @@ import { readAiSettings } from "./ai/keys";
 import { DEFAULT_MAX_TOKENS } from "./ai/defaults";
 import { openSession, recordUsage } from "./ai/run";
 import { rewriteSystem } from "./ai/prompts";
+import { CHAT_MAX_TOKENS, CHAT_TOOL, runChat } from "./chat/loop";
 import { decodeCursor, encodeCursor, hydratePost, hydratePosts, readSettings } from "./tools/shared";
 import { readMenus } from "./tools/menus";
 import { readDesign } from "./tools/design";
@@ -187,7 +188,7 @@ export function createApp(deps: AppDeps) {
     const { actor } = resolveActor(db, c.req.raw);
     const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     const body = await c.req.json().catch(() => ({}));
-    const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks, ip: ipOf(c) }, registry);
+    const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks, registry, ip: ipOf(c) }, registry);
     if (!result.ok) {
       if (result.retryAfter) c.header("retry-after", String(result.retryAfter));
       return c.json(result.error, result.status as 400);
@@ -225,7 +226,7 @@ export function createApp(deps: AppDeps) {
     const result = await dispatch(
       "import.wordpress",
       { xml, encoding: "utf8", options },
-      { actor, channel, db, hooks },
+      { actor, channel, db, hooks, registry },
       registry,
     );
     if (!result.ok) return c.json(result.error, result.status as 400);
@@ -236,7 +237,7 @@ export function createApp(deps: AppDeps) {
   app.get("/api/export/site.json", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
     const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
-    const result = await dispatch("export.site", {}, { actor, channel, db, hooks }, registry);
+    const result = await dispatch("export.site", {}, { actor, channel, db, hooks, registry }, registry);
     if (!result.ok) return c.json(result.error, result.status as 400);
     const stamp = new Date().toISOString().slice(0, 10);
     c.header("content-disposition", `attachment; filename="wove-export-${stamp}.json"`);
@@ -267,7 +268,7 @@ export function createApp(deps: AppDeps) {
   app.post("/api/ai/stream", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
     const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
-    const ctx: Ctx = { actor, channel, db, hooks };
+    const ctx: Ctx = { actor, channel, db, hooks, registry };
     const raw = await c.req.json().catch(() => ({}));
 
     const parsed = AiStreamInput.safeParse(raw);
@@ -342,6 +343,67 @@ export function createApp(deps: AppDeps) {
         recordUsage(ctx, { ...meta, usage: { inputTokens: 0, outputTokens: 0 }, durationMs: performance.now() - started, ok: false });
         auditCall(ctx, tool, input, false, te.message);
         await stream.writeSSE({ event: "error", data: JSON.stringify({ code: te.code, message: te.message }) });
+      }
+    });
+  });
+
+  /**
+   * Site chat. Same auth, scope and AI budget as `/api/ai/stream`; everything that can fail
+   * up front (no key, wrong scope, unknown thread) fails as JSON before any SSE byte.
+   */
+  const ChatStreamInput = z.object({ threadId: z.string().optional(), message: z.string().min(1) });
+
+  app.post("/api/chat/stream", async (c) => {
+    const { actor } = resolveActor(db, c.req.raw);
+    const ctx: Ctx = { actor, channel: "chat", db, hooks, registry };
+    const raw = await c.req.json().catch(() => ({}));
+
+    const parsed = ChatStreamInput.safeParse(raw);
+    if (!parsed.success) return c.json(err("validation_error", "Invalid chat payload", parsed.error.flatten()), 400);
+    const input = parsed.data;
+
+    if (actor.kind === "anon") {
+      auditCall(ctx, CHAT_TOOL, input, false, "Authentication required");
+      return c.json(err("unauthenticated", "Authentication required"), 401);
+    }
+    if (!hasScopes(actor, ["ai:use"])) {
+      auditCall(ctx, CHAT_TOOL, input, false, "Missing scope(s): ai:use");
+      return c.json(err("forbidden", "Missing scope(s): ai:use", { required: ["ai:use"], granted: actor.scopes }), 403);
+    }
+    const limit = consume(aiLimiter, `ai:${actorKey(actor, ipOf(c))}`, env);
+    if (limit.limited) {
+      auditCall(ctx, CHAT_TOOL, input, false, RATE_LIMITED_MESSAGE);
+      return tooManyRequests(c, limit.retryAfter);
+    }
+
+    let session: Awaited<ReturnType<typeof openSession>>;
+    try {
+      session = await openSession(ctx, CHAT_MAX_TOKENS);
+    } catch (e) {
+      const te = e instanceof ToolError ? e : new ToolError("internal_error", (e as Error).message);
+      auditCall(ctx, CHAT_TOOL, input, false, te.message);
+      return c.json(err(te.code, te.message, te.details), te.status as 400);
+    }
+
+    return streamSSE(c, async (stream) => {
+      const send = (event: string, data: unknown) => stream.writeSSE({ event, data: JSON.stringify(data) });
+      try {
+        for await (const ev of runChat(ctx, session, { threadId: input.threadId, message: input.message, baseUrl, registry })) {
+          switch (ev.type) {
+            case "thread": await send("thread", { threadId: ev.threadId, title: ev.title }); break;
+            case "token": await send("token", { text: ev.text }); break;
+            case "tool_call": await send("tool_call", { call: ev.call }); break;
+            case "message": await send("message", { message: ev.message }); break;
+            case "done":
+              auditCall(ctx, CHAT_TOOL, input, true, null);
+              await send("done", { usage: ev.usage });
+              break;
+          }
+        }
+      } catch (e) {
+        const te = e instanceof ToolError ? e : new ToolError("internal_error", (e as Error)?.message ?? "Chat failed");
+        auditCall(ctx, CHAT_TOOL, input, false, te.message);
+        await send("error", { code: te.code, message: te.message });
       }
     });
   });

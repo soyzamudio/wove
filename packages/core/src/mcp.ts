@@ -41,7 +41,7 @@ export function createMcpHandler(deps: McpDeps) {
       const result = await dispatch(
         request.params.name,
         request.params.arguments ?? {},
-        { actor, channel: "mcp", db: deps.db, hooks: deps.hooks, ip },
+        { actor, channel: "mcp", db: deps.db, hooks: deps.hooks, registry: deps.registry, ip },
         deps.registry,
       );
       if (!result.ok) {

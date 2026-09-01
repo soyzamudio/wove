@@ -12,6 +12,12 @@ export interface Ctx {
   db: DB;
   hooks: Hooks;
   /**
+   * The registry this call came from, when it is not the process-wide one (tests, embedded
+   * hosts). Tools that dispatch *other* tools must honour it, or they would resolve against
+   * an empty registry.
+   */
+  registry?: Registry;
+  /**
    * Client IP, when the transport could determine one. Used to key rate limits for
    * anonymous callers; absent in-process (tests, hooks) which are never limited by IP.
    */

@@ -143,7 +143,7 @@ export const auditLog = sqliteTable(
     ts: text("ts").notNull(),
     actorKind: text("actor_kind", { enum: ["user", "agent", "anon", "system"] }).notNull(),
     actorId: text("actor_id"),
-    channel: text("channel", { enum: ["ui", "rest", "mcp", "system"] }).notNull(),
+    channel: text("channel", { enum: ["ui", "rest", "mcp", "system", "chat"] }).notNull(),
     tool: text("tool").notNull(),
     input: text("input", { mode: "json" }).$type<unknown>(),
     ok: integer("ok", { mode: "boolean" }).notNull(),
@@ -159,7 +159,7 @@ export const aiUsage = sqliteTable(
     ts: text("ts").notNull(),
     actorKind: text("actor_kind", { enum: ["user", "agent", "anon", "system"] }).notNull(),
     actorId: text("actor_id"),
-    channel: text("channel", { enum: ["ui", "rest", "mcp", "system"] }).notNull(),
+    channel: text("channel", { enum: ["ui", "rest", "mcp", "system", "chat"] }).notNull(),
     tool: text("tool").notNull(),
     provider: text("provider", { enum: ["anthropic", "openai", "google", "xai", "openai-compatible"] }).notNull(),
     model: text("model").notNull(),
@@ -171,6 +171,35 @@ export const aiUsage = sqliteTable(
   },
   (t) => ({ byTs: index("ai_usage_ts_idx").on(t.ts), byTool: index("ai_usage_tool_idx").on(t.tool) }),
 );
+
+export const chatThreads = sqliteTable("chat_threads", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  actorKind: text("actor_kind", { enum: ["user", "agent", "anon", "system"] }).notNull(),
+  actorId: text("actor_id"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const chatMessages = sqliteTable(
+  "chat_messages",
+  {
+    id: text("id").primaryKey(),
+    threadId: text("thread_id").notNull().references(() => chatThreads.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    content: text("content").notNull(),
+    /** ChatToolCall[] JSON — reads already executed, mutations awaiting approval. */
+    toolCalls: text("tool_calls", { mode: "json" }).$type<unknown[]>().notNull().default([]),
+    planPending: integer("plan_pending", { mode: "boolean" }).notNull().default(false),
+    /** { inputTokens, outputTokens } JSON, assistant messages only. */
+    usage: text("usage", { mode: "json" }).$type<unknown>(),
+    ts: text("ts").notNull(),
+  },
+  (t) => ({ byThread: index("chat_messages_thread_idx").on(t.threadId) }),
+);
+
+export type ChatThreadRow = typeof chatThreads.$inferSelect;
+export type ChatMessageRow = typeof chatMessages.$inferSelect;
 
 export type PostRow = typeof posts.$inferSelect;
 export type UserRow = typeof users.$inferSelect;

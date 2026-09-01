@@ -34,6 +34,9 @@ setProviderFactory((opts): AiProviderClient => ({
     yield { type: "token", text: nextTexts.shift() ?? "canned" };
     yield { type: "done", model: opts.model, usage: { inputTokens: 11, outputTokens: 22 } };
   },
+  async *chatStream() {
+    yield { type: "done", usage: { inputTokens: 11, outputTokens: 22 }, stopReason: "end" };
+  },
   async listModels() {
     return [{ id: "fake-1", name: "Fake One" }];
   },
@@ -135,6 +138,7 @@ describe("ai.generate / ai.rewrite", () => {
     const restore = setProviderFactory(() => ({
       generate: async () => { throw new Error("connection refused"); },
       stream: async function* () { throw new Error("connection refused"); },
+      chatStream: async function* () { throw new Error("connection refused"); },
       listModels: async () => [],
     }));
     const r = await h.call(ADMIN, "ai.generate", { prompt: "boom" });

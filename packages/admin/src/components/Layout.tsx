@@ -6,6 +6,8 @@ import { apiLogout, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
 import { NAV_GROUPS, type NavItem } from "./nav";
 import { CommandPalette } from "./CommandPalette";
+import { ChatLauncher, ChatPanel } from "./ChatPanel";
+import { ChatProvider, useChat } from "../context/ChatContext";
 import { Logo } from "./Logo";
 import { Avatar, Kbd, cx } from "./ui";
 
@@ -17,9 +19,19 @@ const NEW_BTN =
   "flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-700 px-2 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
 export function Layout({ children }: { children: ReactNode }) {
+  // Chat state lives above the route content so the conversation survives navigation.
+  return (
+    <ChatProvider>
+      <LayoutShell>{children}</LayoutShell>
+    </ChatProvider>
+  );
+}
+
+function LayoutShell({ children }: { children: ReactNode }) {
   const { user, refresh } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const chat = useChat();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -34,11 +46,14 @@ export function Layout({ children }: { children: ReactNode }) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        chat.toggle();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [chat]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -195,7 +210,13 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <main className="min-w-0 flex-1 px-6 pb-10">{children}</main>
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        extraCommands={[{ label: "Site chat", hint: "⌘J", run: () => chat.setOpen(true) }]}
+      />
+      <ChatLauncher />
+      <ChatPanel />
     </div>
   );
 }

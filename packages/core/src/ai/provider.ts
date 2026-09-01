@@ -23,7 +23,40 @@ export type AiStreamEvent =
   | { type: "token"; text: string }
   | { type: "done"; usage: AiUsageTokens; model: string };
 
+// ---------------------------------------------------------------- chat (tool calling)
+
+export type ProviderContentPart =
+  | { type: "text"; text: string }
+  | { type: "toolUse"; id: string; name: string; input: unknown }
+  | { type: "toolResult"; id: string; content: string; isError?: boolean };
+
+export interface ProviderChatMessage {
+  role: "user" | "assistant";
+  content: string | ProviderContentPart[];
+}
+
+export interface ProviderToolDef {
+  name: string;
+  description: string;
+  /** JSON Schema for the tool's arguments. */
+  parameters: Record<string, unknown>;
+}
+
+export interface AiChatRequest {
+  system: string;
+  messages: ProviderChatMessage[];
+  tools: ProviderToolDef[];
+  maxTokens: number;
+}
+
+export type AiChatEvent =
+  | { type: "token"; text: string }
+  | { type: "toolUse"; id: string; name: string; input: unknown }
+  | { type: "done"; usage: AiUsageTokens; stopReason: "end" | "tool_use" };
+
 export interface AiProviderClient {
+  /** One provider turn: streams text, then any tool calls, then `done`. */
+  chatStream(req: AiChatRequest): AsyncIterable<AiChatEvent>;
   generate(req: AiGenerateRequest): Promise<AiGenerateResult>;
   stream(req: AiGenerateRequest): AsyncIterable<AiStreamEvent>;
   listModels(): Promise<{ id: string; name: string | null }[]>;

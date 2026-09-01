@@ -1,6 +1,6 @@
 import { describe, expect, test, mock } from "bun:test";
 import { createClient } from "@wove/sdk";
-import { channelFetch, parseSseBuffer, resolveApiOrigin, resolveApiUrl, streamAi } from "./api";
+import { channelFetch, parseSseBuffer, resolveApiOrigin, resolveApiUrl, streamAi, streamChat } from "./api";
 
 describe("resolveApiOrigin", () => {
   test("uses the absolute API_URL when set", () => {
@@ -181,6 +181,184 @@ describe("streamAi", () => {
     }
 
     expect(error).toEqual({ code: "no_key", message: "No API key configured" });
+  });
+});
+
+describe("streamChat", () => {
+  function sseResponse(text: string, status = 200) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(text));
+        controller.close();
+      },
+    });
+    return new Response(stream, { status, headers: { "content-type": "text/event-stream" } });
+  }
+
+  const readCall = {
+    id: "c1",
+    tool: "post.list",
+    input: { type: "page" },
+    kind: "read",
+    status: "executed",
+    result: { items: [] },
+    preview: null,
+  };
+  const proposedCall = {
+    id: "c2",
+    tool: "post.create",
+    input: { title: "Pricing" },
+    kind: "mutation",
+    status: "proposed",
+    result: null,
+    preview: { title: "Create page \u201cPricing\u201d", diff: "@@ -0,0 +1 @@\n+Pricing" },
+  };
+  const finalMessage = {
+    id: "m1",
+    role: "assistant",
+    content: "Here is the plan.",
+    toolCalls: [readCall, proposedCall],
+    planPending: true,
+    usage: null,
+    ts: "2026-01-01T00:00:00.000Z",
+  };
+
+  test("routes every event kind to its handler, in order", async () => {
+    const body =
+      'event: thread\ndata: {"threadId":"t1","title":"Pricing page"}\n\n' +
+      'event: token\ndata: {"text":"Here "}\n\n' +
+      'event: token\ndata: {"text":"is"}\n\n' +
+      `event: tool_call\ndata: ${JSON.stringify({ call: readCall })}\n\n` +
+      `event: tool_call\ndata: ${JSON.stringify({ call: proposedCall })}\n\n` +
+      `event: message\ndata: ${JSON.stringify({ message: finalMessage })}\n\n` +
+      'event: done\ndata: {"usage":{"inputTokens":9,"outputTokens":3}}\n\n';
+
+    const orig = globalThis.fetch;
+    let sent: any = null;
+    globalThis.fetch = mock(async (_input: any, init?: RequestInit) => {
+      sent = init;
+      return sseResponse(body);
+    }) as unknown as typeof fetch;
+
+    const seen: string[] = [];
+    let thread: any = null;
+    let tokens = "";
+    const calls: any[] = [];
+    let message: any = null;
+    let done: any = null;
+    try {
+      await streamChat(
+        { message: "make a pricing page" },
+        {
+          onThread: (t) => { seen.push("thread"); thread = t; },
+          onToken: (t) => { seen.push("token"); tokens += t; },
+          onToolCall: (c) => { seen.push("tool_call"); calls.push(c); },
+          onMessage: (m) => { seen.push("message"); message = m; },
+          onDone: (d) => { seen.push("done"); done = d; },
+          onError: () => seen.push("error"),
+        }
+      );
+    } finally {
+      globalThis.fetch = orig;
+    }
+
+    expect(seen).toEqual(["thread", "token", "token", "tool_call", "tool_call", "message", "done"]);
+    expect(thread).toEqual({ threadId: "t1", title: "Pricing page" });
+    expect(tokens).toBe("Here is");
+    expect(calls.map((c) => c.status)).toEqual(["executed", "proposed"]);
+    expect(calls[1].preview.diff).toContain("+Pricing");
+    expect(message.planPending).toBe(true);
+    expect(message.toolCalls).toHaveLength(2);
+    expect(done).toEqual({ usage: { inputTokens: 9, outputTokens: 3 } });
+
+    expect(sent?.credentials).toBe("include");
+    expect(new Headers(sent?.headers).get("x-wove-channel")).toBe("ui");
+    expect(JSON.parse(String(sent?.body))).toEqual({ message: "make a pricing page" });
+  });
+
+  test("passes threadId through and handles an in-stream error event", async () => {
+    const orig = globalThis.fetch;
+    let sent: any = null;
+    globalThis.fetch = mock(async (_input: any, init?: RequestInit) => {
+      sent = init;
+      return sseResponse('event: token\ndata: {"text":"partial"}\n\nevent: error\ndata: {"code":"provider_error","message":"upstream 529"}\n\n');
+    }) as unknown as typeof fetch;
+
+    let tokens = "";
+    let error: any = null;
+    try {
+      await streamChat({ threadId: "t9", message: "hi" }, { onToken: (t) => (tokens += t), onError: (e) => (error = e) });
+    } finally {
+      globalThis.fetch = orig;
+    }
+
+    expect(tokens).toBe("partial");
+    expect(error).toEqual({ code: "provider_error", message: "upstream 529" });
+    expect(JSON.parse(String(sent?.body)).threadId).toBe("t9");
+  });
+
+  test("surfaces a non-2xx JSON setup failure through onError", async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = mock(
+      async () =>
+        new Response(JSON.stringify({ code: "no_key", message: "No API key configured" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        })
+    ) as unknown as typeof fetch;
+
+    let error: any = null;
+    let done = false;
+    try {
+      await streamChat({ message: "hi" }, { onError: (e) => (error = e), onDone: () => (done = true) });
+    } finally {
+      globalThis.fetch = orig;
+    }
+
+    expect(error).toEqual({ code: "no_key", message: "No API key configured" });
+    expect(done).toBe(false);
+  });
+
+  test("ignores unknown events and malformed JSON payloads", async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = mock(async () =>
+      sseResponse(
+        'event: heartbeat\ndata: {"t":1}\n\n' +
+          'event: token\ndata: {not json\n\n' +
+          'event: token\ndata: {"text":"ok"}\n\n'
+      )
+    ) as unknown as typeof fetch;
+
+    let tokens = "";
+    let error: any = null;
+    try {
+      await streamChat({ message: "hi" }, { onToken: (t) => (tokens += t), onError: (e) => (error = e) });
+    } finally {
+      globalThis.fetch = orig;
+    }
+
+    expect(tokens).toBe("ok");
+    expect(error).toBeNull();
+  });
+
+  test("resolves quietly when the caller aborts", async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = mock(async () => {
+      const err: any = new Error("aborted");
+      err.name = "AbortError";
+      throw err;
+    }) as unknown as typeof fetch;
+
+    let error: any = null;
+    const controller = new AbortController();
+    controller.abort();
+    try {
+      await streamChat({ message: "hi" }, { onError: (e) => (error = e) }, controller.signal);
+    } finally {
+      globalThis.fetch = orig;
+    }
+    expect(error).toBeNull();
   });
 });
 

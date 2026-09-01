@@ -26,6 +26,9 @@ beforeEach(() => {
     async *stream() {
       yield { type: "done", model: opts.model, usage: { inputTokens: 0, outputTokens: 0 } };
     },
+    async *chatStream() {
+      yield { type: "done", usage: { inputTokens: 0, outputTokens: 0 }, stopReason: "end" };
+    },
     async listModels() { return []; },
   }));
 });

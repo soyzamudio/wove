@@ -1,6 +1,31 @@
 import { GoogleGenAI } from "@google/genai";
 import { ToolError } from "../../tools/registry";
-import { missingKey, type AiGenerateRequest, type AiProviderClient, type AiProviderOptions, type AiStreamEvent } from "../provider";
+import {
+  missingKey,
+  type AiChatEvent, type AiChatRequest, type AiGenerateRequest, type AiProviderClient,
+  type AiProviderOptions, type AiStreamEvent, type ProviderChatMessage,
+} from "../provider";
+import { ToolNameMap } from "../toolnames";
+
+/** Neutral messages → Gemini `contents`. Assistant is "model"; tool results are functionResponse parts. */
+function toGoogleContents(messages: ProviderChatMessage[], names: ToolNameMap): any[] {
+  const out: any[] = [];
+  for (const m of messages) {
+    const role = m.role === "assistant" ? "model" : "user";
+    if (typeof m.content === "string") {
+      out.push({ role, parts: [{ text: m.content }] });
+      continue;
+    }
+    const parts: any[] = [];
+    for (const p of m.content) {
+      if (p.type === "text") parts.push({ text: p.text });
+      else if (p.type === "toolUse") parts.push({ functionCall: { id: p.id, name: names.toWire(p.name), args: (p.input ?? {}) as object } });
+      else parts.push({ functionResponse: { id: p.id, name: p.id, response: { result: p.content } } });
+    }
+    if (parts.length) out.push({ role, parts });
+  }
+  return out;
+}
 
 function mapError(e: unknown): ToolError {
   if (e instanceof ToolError) return e;
@@ -36,6 +61,60 @@ export function createGoogleClient(opts: AiProviderOptions): AiProviderClient {
   });
 
   return {
+    async *chatStream(req: AiChatRequest): AsyncIterable<AiChatEvent> {
+      const names = new ToolNameMap(req.tools.map((t) => t.name));
+      // functionResponse must echo the *declared* name, so remember it per call id.
+      const callNames = new Map<string, string>();
+      for (const m of req.messages) {
+        if (typeof m.content === "string") continue;
+        for (const p of m.content) if (p.type === "toolUse") callNames.set(p.id, names.toWire(p.name));
+      }
+      const contents = toGoogleContents(req.messages, names).map((c) => ({
+        ...c,
+        parts: c.parts.map((p: any) =>
+          p.functionResponse ? { functionResponse: { ...p.functionResponse, name: callNames.get(p.functionResponse.id) ?? p.functionResponse.name } } : p,
+        ),
+      }));
+
+      const uses: { id: string; name: string; input: unknown }[] = [];
+      let usage = { inputTokens: 0, outputTokens: 0 };
+      try {
+        const s = await client.models.generateContentStream({
+          model,
+          contents,
+          config: {
+            systemInstruction: req.system,
+            maxOutputTokens: req.maxTokens,
+            ...(req.tools.length
+              ? {
+                  tools: [
+                    {
+                      functionDeclarations: req.tools.map((t) => ({
+                        name: names.toWire(t.name),
+                        description: t.description,
+                        parameters: t.parameters as any,
+                      })),
+                    },
+                  ],
+                }
+              : {}),
+          },
+        });
+        let n = 0;
+        for await (const chunk of s) {
+          if (chunk.text) yield { type: "token", text: chunk.text };
+          for (const call of chunk.functionCalls ?? []) {
+            uses.push({ id: call.id ?? `call_${n++}`, name: names.fromWire(call.name ?? ""), input: call.args ?? {} });
+          }
+          if (chunk.usageMetadata) usage = tokens(chunk.usageMetadata);
+        }
+      } catch (e) {
+        throw mapError(e);
+      }
+      for (const u of uses) yield { type: "toolUse", ...u };
+      yield { type: "done", usage, stopReason: uses.length ? "tool_use" : "end" };
+    },
+
     async generate(req) {
       try {
         const res = await client.models.generateContent(params(req));
