@@ -201,3 +201,13 @@ describe("templateFileName", () => {
     expect(templateFileName("!!!")).toBe("site-template.json");
   });
 });
+
+test("summarizeReport warns loudly when merge keeps the existing home page", () => {
+  const lines = summarizeReport({
+    createdPages: ["pricing"], overwrittenPages: [], skippedPages: ["home", "about"],
+    createdPosts: [], menusSet: ["header"], designApplied: true, settingsApplied: false, mediaUploaded: 0,
+  });
+  const warn = lines.find((l) => l.key === "homeKept");
+  expect(warn?.tone).toBe("amber");
+  expect(warn?.text).toContain("Replace");
+});

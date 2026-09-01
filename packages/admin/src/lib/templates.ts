@@ -57,6 +57,13 @@ export function summarizeReport(report: TemplateApplyReport): ReportLine[] {
       ),
       tone: "neutral",
     });
+    if (report.skippedPages.includes("home")) {
+      lines.push({
+        key: "homeKept",
+        text: "Your existing home page is kept, so the template's home page will NOT show on your site. Apply with Replace to use the template's home page.",
+        tone: "amber",
+      });
+    }
   }
   if (report.createdPosts.length > 0) {
     lines.push({
