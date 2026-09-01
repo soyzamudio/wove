@@ -54,6 +54,10 @@ COPY --from=build /app/packages/site/dist packages/site/dist
 
 RUN mkdir -p /app/packages/core/data && chown -R wove:wove /app
 
+# Lets the app know it's running in the official container (drives the
+# update instructions it shows in the admin).
+ENV WOVE_DOCKER=1
+
 VOLUME /app/packages/core/data
 EXPOSE 4000
 USER wove

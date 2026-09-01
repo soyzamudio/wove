@@ -130,10 +130,58 @@ volume.
 
 ## Updating
 
+### Docker
+
 ```sh
-docker compose pull && docker compose up -d --build   # Docker
-# or, on a VPS:
-git pull && bun install && bun run build && sudo systemctl restart wove
+docker compose pull && docker compose up -d
 ```
 
-Drizzle migrations run automatically on boot; no manual migration step.
+`docker-compose.yml` tracks `ghcr.io/soyzamudio/wove:latest`. To pin a version,
+set the tag explicitly (`ghcr.io/soyzamudio/wove:0.1.0`) — recommended in
+production, so upgrades are a deliberate edit.
+
+**Pre-upgrade backup**: on boot, before it applies any pending Drizzle
+migration, Wove copies the SQLite database to `data/backups/` (inside the
+volume, next to `wove.db`). No manual step, no downtime beyond the restart.
+
+**Rollback**: point the image back at the previous tag, then restore that
+backup — schema changes are not reversed by downgrading the code alone.
+
+```sh
+# 1. back to the previous image
+sed -i 's|wove:0.2.0|wove:0.1.0|' docker-compose.yml && docker compose up -d
+# 2. restore the pre-upgrade backup over the live DB
+docker compose stop wove
+docker run --rm -v wove_wove-data:/data alpine \
+  sh -c 'cp /data/backups/wove-<timestamp>.db /data/wove.db'
+docker compose start wove
+```
+
+### Git install (VPS / bare metal)
+
+```sh
+bun run update            # newest tag: changelog delta, checkout, install, build
+bun run update --check    # just tell me whether an update exists
+sudo systemctl restart wove
+```
+
+`bun run update` refuses to run on a dirty working tree and never touches the
+database — migrations (and the pre-upgrade backup above) happen on the next
+boot, which is why the restart is a separate, deliberate step.
+
+### Update notices in the admin
+
+The admin shows a notice when a newer release exists. The check asks
+`updates.usewove.com` (falling back to the GitHub releases API) for the latest
+version number and **sends nothing** — no site URL, no telemetry, no
+identifiers, just an outbound GET. Turn it off with:
+
+```
+WOVE_UPDATE_CHECK=0
+```
+
+### Migrations
+
+Drizzle migrations run automatically on boot; there is no manual migration
+step. Any release that ships one is at least a minor version — see
+[CHANGELOG.md](../CHANGELOG.md) for the pre-1.0 versioning policy.

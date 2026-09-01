@@ -1,0 +1,81 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: "1.2.x" }
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+
+      - name: Version from tag
+        id: meta
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # linux/amd64 only: the arm64 build would need QEMU emulation for the
+      # Bun/Vite/Astro build stage, which is slow and flaky. Add arm64 here when
+      # a native arm runner is available.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/soyzamudio/wove:${{ steps.meta.outputs.version }}
+            ghcr.io/soyzamudio/wove:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          bun -e '
+            const v = process.env.VERSION;
+            const text = await Bun.file("CHANGELOG.md").text().catch(() => "");
+            const head = "## v" + v;
+            const at = text.startsWith(head) ? 0 : text.indexOf("\n" + head);
+            let out = "";
+            if (at !== -1) {
+              const rest = text.slice(at === 0 ? 0 : at + 1);
+              const next = rest.indexOf("\n## ");
+              out = (next === -1 ? rest : rest.slice(0, next)).trim();
+            }
+            await Bun.write("RELEASE_NOTES.md", out);
+          '
+          if [ -s RELEASE_NOTES.md ]; then
+            echo "found=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=0" >> "$GITHUB_OUTPUT"
+            echo "no CHANGELOG section for $VERSION — falling back to auto-generated notes"
+          fi
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.notes.outputs.found }}" = "1" ]; then
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          fi

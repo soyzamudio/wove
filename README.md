@@ -13,6 +13,7 @@
   <a href="https://github.com/soyzamudio/wove/actions/workflows/ci.yml"><img src="https://github.com/soyzamudio/wove/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache-2.0"></a>
   <img src="https://img.shields.io/badge/runtime-Bun%201.2-black" alt="Bun">
+  <a href="https://github.com/soyzamudio/wove/releases"><img src="https://img.shields.io/github/v/release/soyzamudio/wove?sort=semver&color=2563eb" alt="Latest release"></a>
   <a href="https://usewove.com"><img src="https://img.shields.io/badge/usewove.com-hosted%20edition-2563eb" alt="usewove.com"></a>
 </p>
 
@@ -157,6 +158,8 @@ docker compose up -d
 See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the full guide — Docker, a
 VPS without Docker, reverse proxy/TLS, S3 media, and every environment
 variable.
+
+**Updating**: `docker compose pull && docker compose up -d`, or `bun run update` for a git install — details in [DEPLOY.md → Updating](docs/DEPLOY.md#updating).
 
 ## Status
 
