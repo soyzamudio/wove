@@ -8,6 +8,7 @@ const settings: Settings = {
   siteUrl: "http://localhost:4321",
   theme: "default",
   postsPerPage: 10,
+  postPermalink: "/:slug",
 };
 
 describe("formatLlmsTxt", () => {
@@ -17,19 +18,19 @@ describe("formatLlmsTxt", () => {
   });
 
   test("formats each entry as a markdown link with absolute url and excerpt", () => {
-    const out = formatLlmsTxt(settings, [{ slug: "hello-world", title: "Hello World", excerpt: "An intro." }]);
+    const out = formatLlmsTxt(settings, [{ path: "/hello-world", title: "Hello World", excerpt: "An intro." }]);
     expect(out).toContain("- [Hello World](http://localhost:4321/hello-world): An intro.");
   });
 
   test("omits the colon when there is no excerpt", () => {
-    const out = formatLlmsTxt(settings, [{ slug: "about", title: "About", excerpt: null }]);
+    const out = formatLlmsTxt(settings, [{ path: "/about", title: "About", excerpt: null }]);
     expect(out).toContain("- [About](http://localhost:4321/about)");
     expect(out).not.toContain("About](http://localhost:4321/about):");
   });
 
   test("strips a trailing slash from siteUrl", () => {
     const out = formatLlmsTxt({ ...settings, siteUrl: "http://localhost:4321/" }, [
-      { slug: "x", title: "X", excerpt: null },
+      { path: "/x", title: "X", excerpt: null },
     ]);
     expect(out).toContain("(http://localhost:4321/x)");
   });

@@ -59,6 +59,34 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   });
 }
 
+/** Trailing slashes are noise; `/a/b/` and `/a/b` are the same address. */
+function normalizePath(path: string): string {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return p.length > 1 ? p.replace(/\/+$/, "") || "/" : p;
+}
+
+/**
+ * Resolve a full public path — permalink prefix and page hierarchy included — to its
+ * published post or page. `/wrong/consulting` is a miss even when the `consulting` slug
+ * exists, because core checks the whole ancestor chain.
+ */
+export async function getByPath(path: string): Promise<Post | null> {
+  const wanted = normalizePath(path);
+  if (MOCK) {
+    return mockAllContent.find((item) => item.status === "published" && item.path === wanted) ?? null;
+  }
+  const url = `${API_URL.replace(/\/+$/, "")}/api/public/path?p=${encodeURIComponent(wanted)}`;
+  return cached(url, async () => {
+    const res = await fetch(url);
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new Error(`wove core request failed: ${res.status} ${url}`);
+    }
+    const body = (await res.json()) as { post: Post | null };
+    return body?.post ?? null;
+  });
+}
+
 export async function listTerms(): Promise<Term[]> {
   if (MOCK) return mockTerms;
   return getJson<Term[]>("/api/public/terms");

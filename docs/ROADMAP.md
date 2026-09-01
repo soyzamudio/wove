@@ -12,12 +12,12 @@ Snapshot: 2026-09-01 (updated end of day). Legend — ✅ have · 🟡 partial �
 | Block editor (Gutenberg) | ✅ | Section-level blocks, AI-augmented; posts stay Markdown by design |
 | Revisions | ✅ | Every update; restore via UI |
 | Draft / Published / Scheduled | ✅ | In-process scheduler flips due posts (audited as `system`) |
-| Pending review workflow | ❌ | Needed for multi-author *and* for agent-proposed changes |
+| Pending review workflow | ✅ | `pending` status; contributors submit, editors approve; notifies by email |
 | Categories & tags | ✅ | Custom taxonomies ❌ |
 | Custom post types + custom fields (CPT/ACF) | ❌ | The "WordPress as app platform" backbone — see §3 |
 | Featured image | ✅ | Editor rail + site output with srcset |
 | Excerpts | ✅ | Derived for block pages |
-| Permalinks | 🟡 | Flat `/slug`; no structure settings, no page hierarchy/parent |
+| Permalinks | ✅ | Page hierarchy (parent, depth ≤3); post pattern `/:slug` or `/blog/:slug` |
 | Trash (soft delete) + restore | ✅ | `post.delete` trashes; `permanent:true` purges |
 | Bulk / quick edit | 🟡 | Bulk trash/restore/publish/draft/delete; no quick edit |
 | Sticky posts, post formats | ❌ | Low value |
@@ -37,8 +37,8 @@ Snapshot: 2026-09-01 (updated end of day). Legend — ✅ have · 🟡 partial �
 ### Users & access
 | WordPress | wove | Notes |
 |---|---|---|
-| Roles: admin/editor/author/contributor/subscriber | 🟡 | admin + editor only; no author (own-posts-only) |
-| Invites, registration, password reset, profile | ❌ | No email layer at all |
+| Roles: admin/editor/author/contributor/subscriber | ✅ | All but subscriber (no public accounts by design); ownership enforced |
+| Invites, registration, password reset, profile | ✅ | Invite links, forgot/reset, profile page; console/SMTP/Resend email drivers |
 | Application passwords (API access) | ✅ | Agents with scopes — stronger than WP |
 | 2FA | ❌ | |
 | Capabilities system | ✅ | Scopes; per-tool, exposed to agents |
@@ -72,11 +72,11 @@ Snapshot: 2026-09-01 (updated end of day). Legend — ✅ have · 🟡 partial �
 | RSS / JSON Feed | ✅ | `/rss.xml` + `/feed.json` |
 | Sitemap | ✅ | |
 | SEO meta (title/description/OG image) per post | ✅ | Title/description/OG/noindex + search preview |
-| Redirects / 404 log | ❌ | |
+| Redirects / 404 log | ✅ | Auto on slug/path change; 404 log with quick-fix |
 | Import from WordPress (WXR) / export | ✅ | Background job: posts/pages/media/menus/SEO, idempotent re-runs; JSON site export |
 | Backups | 🟡 | Docker volume + `data/` dir documented in DEPLOY.md; managed backups = cloud edition |
 | Cron / scheduled tasks | 🟡 | 30s in-process scheduler for publishing; no general job queue |
-| Email notifications | ❌ | |
+| Email notifications | 🟡 | Pending-review notifications; more events later |
 | Site health / updates | 🟡 | Health card, /health endpoint, single-container deploy (Docker/compose/fly) |
 | Multisite | ❌ | Cloud edition handles tenancy |
 | i18n (admin) / multilingual content | ❌ | Later |
@@ -99,11 +99,11 @@ Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identit
 - **WYSIWYG editor** everywhere prose is edited; storage stays Markdown.
 - **Site templates**: pure-data `SiteTemplate` format, 4 built-ins (Lift, Atelier, Ledger, Corner), live-preview gallery, import/export, `template.*` tools.
 
-### Phase B — teams & trust (next)
-1. **Email layer** (SMTP/Resend driver) → invites, password reset, notifications.
-2. **Roles**: author, contributor; **pending review** status with approve/reject — doubles as the approval queue for agent-written content.
-3. **Redirects** manager (auto-created on slug change, importer-aware) + 404 log.
-4. **Page hierarchy** (parent) + permalink patterns.
+### Phase B — teams & trust ✅ shipped 2026-09-01
+1. ~~Email layer~~ ✅ console/SMTP/Resend drivers → invites, password reset, pending-review notifications.
+2. ~~Roles + pending review~~ ✅ author/contributor with ownership enforcement; `pending` status with approve/back-to-draft; agents flow through the same queue.
+3. ~~Redirects + 404 log~~ ✅ manager UI, auto-redirects on slug/path changes (descendants included, chains collapsed), site-reported 404 log.
+4. ~~Page hierarchy + permalinks~~ ✅ parent pages (depth ≤3, strict path resolution), `/:slug` vs `/blog/:slug` post permalinks.
 
 ### Phase C — the platform play
 5. **Collections** — schema-defined custom content types (events, products, team…) that automatically get tools/MCP/OpenAPI/list views and a block to render them (the CPT+ACF replacement).

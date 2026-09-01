@@ -17,6 +17,8 @@ function basePost(overrides: Partial<Post> = {}): Post {
     featuredImage: null,
     seo: { title: null, description: null, ogImage: null, noindex: false },
     status: "published",
+    parentId: null,
+    path: "/hello",
     authorId: null,
     publishedAt: "2026-01-01T00:00:00.000Z",
     meta: {},

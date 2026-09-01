@@ -50,6 +50,8 @@ export const Post = z.object({
     noindex: z.boolean().default(false),
   }).default({}),
   status: PostStatus,
+  parentId: Id.nullable().default(null).describe("pages only: parent page for hierarchy"),
+  path: z.string().describe("public path: '/slug' for posts (plus any permalink prefix), '/parent/child' chain for pages"),
   authorId: Id.nullable(),
   publishedAt: ISODate.nullable(),
   meta: z.record(z.unknown()).default({}),
@@ -70,6 +72,7 @@ export const PostCreateInput = z.object({
   featuredImage: ImageRef.nullable().optional(),
   seo: z.object({ title: z.string().nullable().optional(), description: z.string().nullable().optional(), ogImage: ImageRef.nullable().optional(), noindex: z.boolean().optional() }).optional(),
   status: PostStatus.default("draft"),
+  parentId: Id.nullable().optional().describe("pages only; max depth 3; must not create a cycle"),
   publishedAt: ISODate.optional(),
   meta: z.record(z.unknown()).optional(),
   terms: z.array(z.object({ taxonomy: z.string(), name: z.string() })).optional(),
@@ -109,6 +112,7 @@ export const Settings = z.object({
   siteUrl: z.string().url().default("http://localhost:4321"),
   theme: z.string().default("default"),
   postsPerPage: z.number().int().min(1).max(100).default(10),
+  postPermalink: z.enum(["/:slug", "/blog/:slug"]).default("/:slug").describe("public URL pattern for posts; pages always use their hierarchy path"),
 });
 export type Settings = z.infer<typeof Settings>;
 

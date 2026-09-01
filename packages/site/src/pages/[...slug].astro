@@ -1,16 +1,18 @@
 ---
 import Layout from "@theme/Layout.astro";
 import { BlockRenderer } from "@wove/blocks";
-import { getPostBySlug, getSettings, report404, resolveRedirect } from "../lib/api";
+import { getByPath, getSettings, report404, resolveRedirect } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
 import { resolveSeo, resolveUrl } from "../lib/seo";
 import { PUBLIC_URL } from "../lib/env";
 
-const { slug } = Astro.params;
+// Catch-all: `/services/consulting` arrives as "services/consulting" and is resolved as a
+// whole path (permalink prefix + page hierarchy), not by its last segment alone.
+const segments = (Astro.params.slug ?? "").split("/").filter(Boolean);
+const path = `/${segments.join("/")}`;
 const settings = await getSettings();
-const post = slug ? await getPostBySlug(slug) : null;
+const post = segments.length > 0 ? await getByPath(path) : null;
 const found = Boolean(post && post.status === "published");
-const path = `/${slug ?? ""}`;
 
 if (!found) {
   // A missing page may be a moved one: ask core before giving up.

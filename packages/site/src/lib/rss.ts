@@ -17,7 +17,7 @@ export interface RssItemInput {
 }
 
 function buildItem({ post, siteUrl, contentHtml }: RssItemInput): string {
-  const url = `${siteUrl}/${post.slug}`;
+  const url = `${siteUrl}${post.path}`;
   const pubDate = post.publishedAt ? new Date(post.publishedAt).toUTCString() : new Date(post.updatedAt).toUTCString();
   const categories = post.terms.map((term) => `<category>${xmlEscape(term.name)}</category>`).join("");
   return [

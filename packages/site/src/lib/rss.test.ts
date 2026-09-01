@@ -16,6 +16,7 @@ const settings: Settings = {
   siteUrl: "http://localhost:4321",
   theme: "default",
   postsPerPage: 10,
+  postPermalink: "/:slug",
 };
 
 function post(overrides: Partial<Post> = {}): Post {
@@ -31,6 +32,8 @@ function post(overrides: Partial<Post> = {}): Post {
     featuredImage: null,
     seo: { title: null, description: null, ogImage: null, noindex: false },
     status: "published",
+    parentId: null,
+    path: "/hello",
     authorId: null,
     publishedAt: "2026-01-01T00:00:00.000Z",
     meta: {},

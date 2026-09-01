@@ -34,6 +34,7 @@ import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useBuilderState } from "../hooks/useBuilderState";
 import { useDraftRecovery } from "../hooks/useDraftRecovery";
 import { emptyBuilderDoc, type BuilderBlock } from "../lib/builderState";
+import { descendantIds, indentLabel, previewPath, treeOrder } from "../lib/hierarchy";
 import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
 import { draftKey } from "../lib/draftRecovery";
@@ -118,6 +119,9 @@ export function PageBuilder() {
   const siteQuery = useToolQuery("site.info", {});
   const categoriesQuery = useToolQuery("term.list", { taxonomy: "category" });
   const designQuery = useToolQuery("design.get", {});
+  // For the "Parent page" select: every page, to exclude this page + its descendants and
+  // to indent options by depth. 100 pages covers realistic sites in one page-tree UI.
+  const pagesQuery = useToolQuery("post.list", { type: "page", limit: 100 });
   const { role, can } = useAuth();
   // Only admins can list users; editors fall back to the raw author id in the review banner.
   const usersQuery = useToolQuery(
@@ -131,6 +135,7 @@ export function PageBuilder() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
+  const [parentId, setParentId] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("draft");
   const [publishedAtLocal, setPublishedAtLocal] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -162,6 +167,7 @@ export function PageBuilder() {
     setTitle(post.title);
     setSlug(post.slug);
     setSlugTouched(true);
+    setParentId(post.parentId ?? null);
     // "trashed" isn't an option in the Status select; the trash banner handles it.
     setStatus(post.status === "trashed" ? "draft" : post.status);
     setPublishedAtLocal(isoToLocalInput(post.publishedAt));
@@ -206,6 +212,7 @@ export function PageBuilder() {
     () => ({
       title,
       slug,
+      parentId,
       status,
       publishedAtLocal,
       excerpt,
@@ -215,7 +222,7 @@ export function PageBuilder() {
       seo,
       doc: builder.doc,
     }),
-    [title, slug, status, publishedAtLocal, excerpt, tagsInput, category, featuredImage, seo, builder.doc]
+    [title, slug, parentId, status, publishedAtLocal, excerpt, tagsInput, category, featuredImage, seo, builder.doc]
   );
   type FormState = typeof formState;
 
@@ -228,6 +235,7 @@ export function PageBuilder() {
     setTitle(data.title);
     setSlug(data.slug);
     setSlugTouched(true);
+    setParentId(data.parentId ?? null);
     setStatus(data.status);
     setPublishedAtLocal(data.publishedAtLocal);
     setExcerpt(data.excerpt);
@@ -293,6 +301,7 @@ export function PageBuilder() {
     const common = {
       slug,
       title,
+      parentId,
       excerpt: excerpt || undefined,
       status,
       publishedAt,
@@ -465,8 +474,22 @@ export function PageBuilder() {
   }
 
   const siteUrl = (siteQuery.data?.settings.siteUrl ?? "").replace(/\/$/, "");
-  const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
+  // Once saved, core's `post.path` is the source of truth (it accounts for the hierarchy as
+  // actually persisted); before/while editing, compute the same thing optimistically.
+  const displayPath =
+    postQuery.data && postQuery.data.parentId === parentId && postQuery.data.slug === slug
+      ? postQuery.data.path
+      : previewPath(pagesQuery.data?.items ?? [], parentId, slug);
+  const publicUrl = siteUrl && displayPath ? `${siteUrl}${displayPath}` : "";
   const saving = createMutation.isPending || updateMutation.isPending;
+
+  // Candidate parents for this page: every other page, minus this page's own descendants
+  // (picking a descendant as parent would create a cycle) and minus itself.
+  const parentCandidates = useMemo(() => {
+    const all = pagesQuery.data?.items ?? [];
+    const excluded = new Set(id ? [id, ...descendantIds(all, id)] : []);
+    return treeOrder(all).filter((o) => !excluded.has(o.page.id));
+  }, [pagesQuery.data, id]);
   const isTrashed = postQuery.data?.status === "trashed";
   const isPending = postQuery.data?.status === "pending";
   const isReviewer = canReview(role);
@@ -510,6 +533,29 @@ export function PageBuilder() {
               setMetaDirty(true);
             }}
           />
+          {displayPath && (
+            <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400" title={displayPath}>
+              {displayPath}
+            </p>
+          )}
+        </div>
+        <div>
+          <Label htmlFor="page-parent">Parent page</Label>
+          <Select
+            id="page-parent"
+            value={parentId ?? ""}
+            onChange={(e) => {
+              setParentId(e.target.value || null);
+              setMetaDirty(true);
+            }}
+          >
+            <option value="">(none)</option>
+            {parentCandidates.map((o) => (
+              <option key={o.page.id} value={o.page.id}>
+                {indentLabel(o.depth, o.page.title || o.page.slug)}
+              </option>
+            ))}
+          </Select>
         </div>
         <div>
           <Label htmlFor="page-status">Status</Label>

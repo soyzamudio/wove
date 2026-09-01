@@ -557,6 +557,47 @@ export function createApp(deps: AppDeps) {
     return c.json({ items: hydratePosts(db, rows) });
   });
 
+  /**
+   * Resolve a full public path (`/services/consulting`, `/blog/hello`) to its published
+   * post or page. Unlike `/api/public/posts/:slug` this validates the *whole* address:
+   * the permalink prefix for posts, and the exact ancestor chain for pages, so
+   * `/wrong/consulting` is a miss even though the `consulting` slug is unique.
+   */
+  app.get("/api/public/path", (c) => {
+    const raw = c.req.query("p") ?? "";
+    const segments = raw.split("/").filter(Boolean).map((s) => {
+      try { return decodeURIComponent(s); } catch { return s; }
+    });
+    if (segments.length === 0) return c.json({ post: null });
+    const slug = segments[segments.length - 1]!;
+    const row = db.select().from(posts).where(and(eq(posts.slug, slug), publicWhere())).get();
+    if (!row) return c.json({ post: null });
+
+    if (row.type === "post") {
+      // The permalink pattern's fixed segments must be present, and nothing else.
+      const prefix = readSettings(db).postPermalink.split("/").filter(Boolean).filter((s) => s !== ":slug");
+      if (segments.length !== prefix.length + 1) return c.json({ post: null });
+      if (prefix.some((seg, i) => segments[i] !== seg)) return c.json({ post: null });
+      return c.json({ post: hydratePost(db, row) });
+    }
+
+    // Pages: every leading segment must match the actual ancestor chain, and the chain
+    // must end exactly where the path does (no missing and no extra ancestors).
+    let parentId = row.parentId ?? null;
+    for (let i = segments.length - 2; i >= 0; i--) {
+      if (!parentId) return c.json({ post: null });
+      const parent = db
+        .select({ id: posts.id, slug: posts.slug, parentId: posts.parentId })
+        .from(posts)
+        .where(eq(posts.id, parentId))
+        .get();
+      if (!parent || parent.slug !== segments[i]) return c.json({ post: null });
+      parentId = parent.parentId ?? null;
+    }
+    if (parentId) return c.json({ post: null });
+    return c.json({ post: hydratePost(db, row) });
+  });
+
   app.get("/api/public/posts/:slug", (c) => {
     const row = db.select().from(posts)
       .where(and(eq(posts.slug, c.req.param("slug")), publicWhere()))

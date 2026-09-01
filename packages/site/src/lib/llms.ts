@@ -1,13 +1,14 @@
 import type { Settings } from "@wove/sdk";
 
 export interface LlmsEntry {
-  slug: string;
+  /** The post's public path, e.g. "/blog/hello" or "/services/consulting". */
+  path: string;
   title: string;
   excerpt: string | null;
 }
 
-function absoluteUrl(siteUrl: string, slug: string): string {
-  return `${siteUrl.replace(/\/+$/, "")}/${slug}`;
+function absoluteUrl(siteUrl: string, path: string): string {
+  return `${siteUrl.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 /**
@@ -18,7 +19,7 @@ function absoluteUrl(siteUrl: string, slug: string): string {
 export function formatLlmsTxt(settings: Settings, entries: LlmsEntry[]): string {
   const lines = [settings.siteTitle, settings.tagline, ""];
   for (const entry of entries) {
-    const url = absoluteUrl(settings.siteUrl, entry.slug);
+    const url = absoluteUrl(settings.siteUrl, entry.path);
     const excerpt = entry.excerpt?.trim() ?? "";
     lines.push(`- [${entry.title}](${url})${excerpt ? `: ${excerpt}` : ""}`);
   }

@@ -7,7 +7,7 @@ import { assertCanEditPost, assertStatusAllowed, isOwnerScoped, ownsPost } from 
 import { adminBaseUrl } from "../env";
 import { brandFor, pendingPostEmail, sendEmailQuietly } from "../email";
 import {
-  decodeCursor, encodeCursor, hydratePost, hydratePosts, parseSeo, setPostTerms, uniqueSlug,
+  decodeCursor, encodeCursor, hydratePost, hydratePosts, MAX_PAGE_DEPTH, parseSeo, setPostTerms, uniqueSlug,
 } from "./shared";
 import { LooseBlocksDoc, excerptFromDoc, withBlockIds } from "./blocks";
 
@@ -100,6 +100,77 @@ async function announcePending(ctx: Ctx, post: Post): Promise<void> {
   for (const r of reviewers) sendEmailQuietly({ to: r.email, ...body });
 }
 
+
+// ---------------------------------------------------------------- page hierarchy
+
+/** How many levels sit above `id`, inclusive of itself (a root page is 1). */
+function depthOf(ctx: Ctx, id: string): number {
+  let depth = 1;
+  const seen = new Set<string>([id]);
+  let cursor = ctx.db.select({ parentId: posts.parentId }).from(posts).where(eq(posts.id, id)).get()?.parentId ?? null;
+  while (cursor && !seen.has(cursor) && depth <= MAX_PAGE_DEPTH) {
+    seen.add(cursor);
+    depth += 1;
+    cursor = ctx.db.select({ parentId: posts.parentId }).from(posts).where(eq(posts.id, cursor)).get()?.parentId ?? null;
+  }
+  return depth;
+}
+
+/** Levels below `id`, inclusive of itself (a leaf is 1). Bounded by MAX_PAGE_DEPTH. */
+function subtreeHeight(ctx: Ctx, id: string): number {
+  let height = 1;
+  let level = [id];
+  const seen = new Set<string>(level);
+  while (level.length > 0 && height <= MAX_PAGE_DEPTH) {
+    const children = ctx.db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(inArray(posts.parentId, level))
+      .all()
+      .map((r) => r.id)
+      .filter((cid) => !seen.has(cid));
+    if (children.length === 0) break;
+    for (const cid of children) seen.add(cid);
+    height += 1;
+    level = children;
+  }
+  return height;
+}
+
+/**
+ * `parentId` is a pages-only field. Everything that would produce an unresolvable tree —
+ * a non-page parent, a missing parent, a cycle, or a chain deeper than MAX_PAGE_DEPTH —
+ * is a 400 rather than a silently broken path.
+ */
+function assertValidParent(
+  ctx: Ctx,
+  args: { id?: string; type: "post" | "page"; parentId: string | null },
+): void {
+  const { id, type, parentId } = args;
+  if (parentId == null) return;
+  if (type !== "page") throw badRequest("parentId is only supported on pages");
+  if (id && parentId === id) throw badRequest("A page cannot be its own parent");
+  const parent = ctx.db.select({ id: posts.id, type: posts.type }).from(posts).where(eq(posts.id, parentId)).get();
+  if (!parent) throw badRequest(`No page with id "${parentId}" to use as parentId`);
+  if (parent.type !== "page") throw badRequest("parentId must reference a page");
+
+  // cycle: is `id` already an ancestor of the proposed parent?
+  if (id) {
+    const seen = new Set<string>();
+    let cursor: string | null = parentId;
+    while (cursor && !seen.has(cursor)) {
+      if (cursor === id) throw badRequest("parentId would create a cycle");
+      seen.add(cursor);
+      cursor = ctx.db.select({ parentId: posts.parentId }).from(posts).where(eq(posts.id, cursor)).get()?.parentId ?? null;
+    }
+  }
+
+  const height = id ? subtreeHeight(ctx, id) : 1;
+  if (depthOf(ctx, parentId) + height > MAX_PAGE_DEPTH) {
+    throw badRequest(`Page hierarchy is limited to ${MAX_PAGE_DEPTH} levels`);
+  }
+}
+
 export const postList = defineTool({
   name: "post.list",
   description: D["post.list"],
@@ -167,6 +238,7 @@ export const postCreate = defineTool({
   scopes: ToolCatalog["post.create"].scopes,
   handler: async (ctx, input) => {
     assertStatusAllowed(ctx, input.status);
+    assertValidParent(ctx, { type: input.type, parentId: input.parentId ?? null });
     const ts = nowIso();
     const id = newId();
     const write = resolveFormat(input);
@@ -181,6 +253,7 @@ export const postCreate = defineTool({
       featuredImage: input.featuredImage ?? null,
       seo: parseSeo(input.seo ?? {}),
       status: input.status,
+      parentId: input.type === "page" ? input.parentId ?? null : null,
       authorId: ctx.actor.kind === "user" ? ctx.actor.id : null,
       publishedAt: input.publishedAt ?? (input.status === "published" ? ts : null),
       meta: input.meta ?? {},
@@ -246,6 +319,14 @@ export const postUpdate = defineTool({
       draft.seo = parseSeo(merged);
     }
     if (input.slug !== undefined) draft.slug = uniqueSlug(ctx.db, input.slug, prev.id);
+    const nextType = input.type ?? prev.type;
+    if (input.parentId !== undefined) {
+      assertValidParent(ctx, { id: prev.id, type: nextType, parentId: input.parentId ?? null });
+      draft.parentId = input.parentId ?? null;
+    } else if (nextType !== "page" && prev.parentId) {
+      // A page turned into a post leaves the hierarchy behind it.
+      draft.parentId = null;
+    }
     if (input.status !== undefined) {
       draft.status = input.status;
       if (input.status === "published" && !prev.publishedAt && input.publishedAt === undefined) {

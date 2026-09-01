@@ -20,7 +20,7 @@ export const GET: APIRoute = async () => {
       const contentText = isBlocks ? blocksToMarkdown(post.blocks!) : post.content;
       return {
         id: post.id,
-        url: `${siteUrl}/${post.slug}`,
+        url: `${siteUrl}${post.path}`,
         title: post.title,
         content_html: isBlocks ? renderMarkdown(contentText, PUBLIC_URL) : renderMarkdown(post.content, PUBLIC_URL),
         content_text: contentText,

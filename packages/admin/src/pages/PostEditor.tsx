@@ -454,7 +454,9 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
     || postQuery.data?.authorId
     || "someone";
   const siteUrl = (siteQuery.data?.settings.siteUrl ?? "").replace(/\/$/, "");
-  const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
+  // `post.path` (from core) already accounts for the site's post-permalink prefix
+  // (e.g. `/blog/:slug`); only fall back to a bare `/slug` guess before the post loads.
+  const publicUrl = siteUrl ? `${siteUrl}${postQuery.data?.path ?? (slug ? `/${slug}` : "")}` : "";
 
   if (!isCreate && postQuery.isLoading) return <Spinner />;
   if (!isCreate && postQuery.isError) return <ErrorBanner message={errorMessage(postQuery.error)} />;

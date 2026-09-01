@@ -28,7 +28,13 @@ const EMPTY: SettingsType = {
   siteUrl: "",
   theme: "",
   postsPerPage: 10,
+  postPermalink: "/:slug",
 };
+
+const PERMALINK_OPTIONS: Array<{ value: SettingsType["postPermalink"]; label: string; hint: string }> = [
+  { value: "/:slug", label: "/:slug", hint: "Posts live at the site root" },
+  { value: "/blog/:slug", label: "/blog/:slug", hint: "Posts live under /blog" },
+];
 
 export function Settings() {
   // The tab lives in the URL so /settings/design is linkable from the palette.
@@ -107,6 +113,33 @@ export function Settings() {
                     value={form.postsPerPage}
                     onChange={(e) => setForm((f) => ({ ...f, postsPerPage: Number(e.target.value) }))}
                   />
+                </div>
+                <div>
+                  <Label>Post URLs</Label>
+                  <div className="space-y-2">
+                    {PERMALINK_OPTIONS.map((opt) => (
+                      <label
+                        key={opt.value}
+                        className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-zinc-200 p-2.5 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                      >
+                        <input
+                          type="radio"
+                          name="postPermalink"
+                          className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-blue-600 focus:ring-blue-600 dark:border-zinc-700"
+                          checked={form.postPermalink === opt.value}
+                          onChange={() => setForm((f) => ({ ...f, postPermalink: opt.value }))}
+                        />
+                        <span>
+                          <span className="block font-mono font-medium text-zinc-900 dark:text-zinc-100">{opt.label}</span>
+                          <span className="block text-xs text-zinc-500 dark:text-zinc-400">{opt.hint}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    Pages always use their own hierarchy path and aren't affected. Existing links to posts aren't
+                    automatically redirected when you change this — add a redirect for any URLs you want to keep working.
+                  </p>
                 </div>
                 <Button type="submit" variant="primary" disabled={update.isPending}>
                   {update.isPending ? "Saving…" : "Save settings"}

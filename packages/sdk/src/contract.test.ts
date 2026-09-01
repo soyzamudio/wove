@@ -42,7 +42,7 @@ describe("blocks", () => {
 describe("post", () => {
   test("format defaults to markdown and seo/featuredImage have defaults", () => {
     const p = Post.parse({
-      id: "1", type: "post", slug: "hello", title: "Hello", content: "", excerpt: null, status: "draft",
+      id: "1", type: "post", slug: "hello", title: "Hello", content: "", excerpt: null, status: "draft", path: "/hello",
       authorId: null, publishedAt: null, blocks: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     expect(p.format).toBe("markdown");

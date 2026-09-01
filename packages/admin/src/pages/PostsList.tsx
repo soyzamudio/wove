@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Clock, FileText, Plus, RotateCcw, Search, Sparkles, Trash2 } from "lucide-react";
 import type { Post } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
+import { treeOrder } from "../lib/hierarchy";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";
 import {
@@ -99,6 +100,14 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
 
   const items: Post[] = list.data?.items ?? [];
   const visibleIds = useMemo(() => items.map((p) => p.id), [items]);
+  // Pages render as a tree (children under their parent, indented); posts have no hierarchy.
+  const rows = useMemo(
+    () =>
+      postType === "page"
+        ? treeOrder(items).map((o) => ({ post: o.page, depth: o.depth }))
+        : items.map((post) => ({ post, depth: 0 })),
+    [items, postType]
+  );
 
   // Drop selections for rows that are no longer on screen.
   useEffect(() => {
@@ -369,7 +378,7 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((post) => {
+                {rows.map(({ post, depth }) => {
                   const checked = selected.includes(post.id);
                   return (
                     <tr
@@ -391,11 +400,20 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
                         />
                       </td>
                       <td className="px-4 py-2.5">
-                        <Link to={`${basePath}/${post.id}`} className="block">
-                          <div className="font-semibold text-zinc-900 hover:text-blue-700 dark:text-zinc-100 dark:hover:text-blue-400">
+                        <Link
+                          to={`${basePath}/${post.id}`}
+                          className="block"
+                          style={depth > 0 ? { paddingLeft: `${depth * 1.25}rem` } : undefined}
+                        >
+                          <div className="flex items-center gap-1 font-semibold text-zinc-900 hover:text-blue-700 dark:text-zinc-100 dark:hover:text-blue-400">
+                            {depth > 0 && (
+                              <span className="text-zinc-400 dark:text-zinc-600" aria-hidden="true">
+                                └
+                              </span>
+                            )}
                             {post.title || "(untitled)"}
                           </div>
-                          <div className="font-mono text-xs text-zinc-500 dark:text-zinc-400">/{post.slug}</div>
+                          <div className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{post.path}</div>
                         </Link>
                       </td>
                       <td className="px-4 py-2.5">

@@ -18,11 +18,11 @@ const thumbUrl = post.featuredImage ? resolveUrl(post.featuredImage.url, PUBLIC_
 
 <li class="post-card">
   {thumbUrl && (
-    <a href={`/${post.slug}`}>
+    <a href={post.path}>
       <img class="post-card-thumb" src={thumbUrl} alt={post.featuredImage?.alt || ""} loading="lazy" />
     </a>
   )}
-  <h2><a href={`/${post.slug}`}>{post.title}</a></h2>
+  <h2><a href={post.path}>{post.title}</a></h2>
   <p class="post-meta">
     {dateLabel && <time datetime={post.publishedAt ?? undefined}>{dateLabel}</time>}
   </p>

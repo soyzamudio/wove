@@ -67,7 +67,75 @@ export function parseSeo(value: unknown): Post["seo"] {
   return parsed.success ? parsed.data : seoSchema.parse({});
 }
 
-export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
+/** Pages nest at most three deep: `/a/b/c`. */
+export const MAX_PAGE_DEPTH = 3;
+
+export interface PathAncestor { id: string; slug: string; parentId: string | null }
+
+/**
+ * Everything `computePath` needs, resolved once per read instead of once per row:
+ * the permalink pattern from settings, plus a cache of ancestor pages.
+ */
+export interface PathCtx {
+  permalink: string;
+  parentOf(id: string): PathAncestor | undefined;
+}
+
+/**
+ * A post's public path is its permalink pattern; a page's is the slug chain of its
+ * ancestors. Broken or over-deep chains degrade to the shortest resolvable path rather
+ * than throwing — a read must never fail on bad hierarchy data.
+ */
+export function computePath(
+  row: { id: string; type: "post" | "page"; slug: string; parentId?: string | null },
+  ctx: PathCtx,
+): string {
+  if (row.type !== "page") return ctx.permalink.replace(":slug", row.slug);
+  const segments = [row.slug];
+  const seen = new Set<string>([row.id]);
+  let parentId = row.parentId ?? null;
+  for (let i = 0; parentId && i < MAX_PAGE_DEPTH; i++) {
+    const parent = ctx.parentOf(parentId);
+    if (!parent || seen.has(parent.id)) break;
+    seen.add(parent.id);
+    segments.unshift(parent.slug);
+    parentId = parent.parentId ?? null;
+  }
+  return `/${segments.join("/")}`;
+}
+
+/**
+ * Build a `PathCtx` for a batch of rows: one settings read, and one query per hierarchy
+ * level (at most `MAX_PAGE_DEPTH`) instead of one per row.
+ */
+export function makePathCtx(db: DB, rows: { parentId?: string | null }[] = []): PathCtx {
+  const cache = new Map<string, PathAncestor | null>();
+  const load = (ids: string[]): PathAncestor[] => {
+    const missing = ids.filter((id) => !cache.has(id));
+    if (missing.length === 0) return [];
+    const found = db
+      .select({ id: posts.id, slug: posts.slug, parentId: posts.parentId })
+      .from(posts)
+      .where(inArray(posts.id, missing))
+      .all();
+    for (const id of missing) cache.set(id, null);
+    for (const row of found) cache.set(row.id, row);
+    return found;
+  };
+  let level = rows.map((r) => r.parentId).filter((id): id is string => Boolean(id));
+  for (let i = 0; i < MAX_PAGE_DEPTH && level.length > 0; i++) {
+    level = load([...new Set(level)]).map((r) => r.parentId).filter((id): id is string => Boolean(id));
+  }
+  return {
+    permalink: readSettings(db).postPermalink,
+    parentOf: (id) => {
+      if (!cache.has(id)) load([id]);
+      return cache.get(id) ?? undefined;
+    },
+  };
+}
+
+export function toPost(row: PostRow, refs: PostTermRef[] = [], path: PathCtx): Post {
   return {
     id: row.id,
     type: row.type,
@@ -80,6 +148,8 @@ export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
     featuredImage: parseFeaturedImage(row.featuredImage),
     seo: parseSeo(row.seo),
     status: row.status,
+    parentId: row.parentId ?? null,
+    path: computePath(row, path),
     authorId: row.authorId ?? null,
     publishedAt: row.publishedAt ?? null,
     meta: (row.meta ?? {}) as Record<string, unknown>,
@@ -90,12 +160,13 @@ export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
 }
 
 export function hydratePost(db: DB, row: PostRow): Post {
-  return toPost(row, termsForPosts(db, [row.id]).get(row.id) ?? []);
+  return toPost(row, termsForPosts(db, [row.id]).get(row.id) ?? [], makePathCtx(db, [row]));
 }
 
 export function hydratePosts(db: DB, rows: PostRow[]): Post[] {
   const map = termsForPosts(db, rows.map((r) => r.id));
-  return rows.map((r) => toPost(r, map.get(r.id) ?? []));
+  const path = makePathCtx(db, rows);
+  return rows.map((r) => toPost(r, map.get(r.id) ?? [], path));
 }
 
 /** Derive a unique slug, de-duping with `-2`, `-3`, ... */

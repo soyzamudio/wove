@@ -14,7 +14,7 @@ export const GET: APIRoute = async () => {
     `<url><loc>${xmlEscape(siteUrl + "/")}</loc></url>`,
     ...items.map((post) => {
       const lastmod = (post.updatedAt ?? post.publishedAt ?? "").slice(0, 10);
-      return `<url><loc>${xmlEscape(`${siteUrl}/${post.slug}`)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}</url>`;
+      return `<url><loc>${xmlEscape(`${siteUrl}${post.path}`)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}</url>`;
     }),
   ].join("");
 

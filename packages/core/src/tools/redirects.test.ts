@@ -229,3 +229,41 @@ describe("slug-change listener", () => {
     expect(list.map((r: any) => [r.fromPath, r.toPath])).toEqual([["/one", "/back"]]);
   });
 });
+
+describe("path-change listener (pages)", () => {
+  const mkPage = async (title: string, slug: string, extra: Record<string, unknown> = {}) =>
+    unwrap(await h.call(ADMIN, "post.create", { type: "page", title, slug, status: "published", ...extra }));
+
+  test("renaming a parent redirects the parent and every published descendant", async () => {
+    registerRedirectListener(h.hooks, h.db);
+    const parent = await mkPage("About", "about");
+    const child = await mkPage("Consulting", "consulting", { parentId: parent.id });
+    const grandchild = await mkPage("Retainers", "retainers", { parentId: child.id });
+    await mkPage("Secret", "secret", { parentId: parent.id, status: "draft" });
+    expect(grandchild.path).toBe("/about/consulting/retainers");
+
+    await h.call(ADMIN, "post.update", { id: parent.id, slug: "company" });
+    const byFrom = Object.fromEntries(
+      unwrap<any[]>(await h.call(ADMIN, "redirect.list")).map((r: any) => [r.fromPath, r.toPath]),
+    );
+    expect(byFrom["/about"]).toBe("/company");
+    expect(byFrom["/about/consulting"]).toBe("/company/consulting");
+    expect(byFrom["/about/consulting/retainers"]).toBe("/company/consulting/retainers");
+    expect(byFrom["/about/secret"]).toBeUndefined();
+  });
+
+  test("re-parenting a page redirects its old full path", async () => {
+    registerRedirectListener(h.hooks, h.db);
+    const a = await mkPage("Alpha", "alpha");
+    const b = await mkPage("Beta", "beta");
+    const moved = await mkPage("Gamma", "gamma", { parentId: a.id });
+    expect(moved.path).toBe("/alpha/gamma");
+
+    const after = unwrap(await h.call(ADMIN, "post.update", { id: moved.id, parentId: b.id }));
+    expect(after.path).toBe("/beta/gamma");
+    const byFrom = Object.fromEntries(
+      unwrap<any[]>(await h.call(ADMIN, "redirect.list")).map((r: any) => [r.fromPath, r.toPath]),
+    );
+    expect(byFrom["/alpha/gamma"]).toBe("/beta/gamma");
+  });
+});
