@@ -1,13 +1,13 @@
 # WordPress feature parity & roadmap
 
-Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩 plugin territory (deliberately not core)
+Snapshot: 2026-09-01 (updated end of day). Legend — ✅ have · 🟡 partial · ❌ missing · 🧩 plugin territory (deliberately not core)
 
 ## 1. Parity matrix
 
 ### Content
 | WordPress | wove | Notes |
 |---|---|---|
-| Posts | ✅ | Markdown |
+| Posts | ✅ | Markdown under the hood; WYSIWYG editor (raw-MD toggle) |
 | Pages | ✅ | Block documents + visual builder |
 | Block editor (Gutenberg) | ✅ | Section-level blocks, AI-augmented; posts stay Markdown by design |
 | Revisions | ✅ | Every update; restore via UI |
@@ -73,11 +73,11 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Sitemap | ✅ | |
 | SEO meta (title/description/OG image) per post | ✅ | Title/description/OG/noindex + search preview |
 | Redirects / 404 log | ❌ | |
-| Import from WordPress (WXR) / export | ❌ | **Adoption blocker** |
-| Backups | ❌ | Cloud edition; OSS = SQLite file + media dir |
+| Import from WordPress (WXR) / export | ✅ | Background job: posts/pages/media/menus/SEO, idempotent re-runs; JSON site export |
+| Backups | 🟡 | Docker volume + `data/` dir documented in DEPLOY.md; managed backups = cloud edition |
 | Cron / scheduled tasks | 🟡 | 30s in-process scheduler for publishing; no general job queue |
 | Email notifications | ❌ | |
-| Site health / updates | 🟡 | Health card only |
+| Site health / updates | 🟡 | Health card, /health endpoint, single-container deploy (Docker/compose/fly) |
 | Multisite | ❌ | Cloud edition handles tenancy |
 | i18n (admin) / multilingual content | ❌ | Later |
 | Caching / CDN | 🟡 | 10s fetch cache in site; SSR |
@@ -89,31 +89,32 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 ## 2. Where wove already beats WordPress
 Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identities, full audit trail, built-in multi-provider AI with metering, AI page builder with schema-validated output, zero-JS SSR pages, single-binary-style Bun deploy, `llms.txt`.
 
-## 3. Proposed roadmap
+## 3. Roadmap
 
-### Phase A — table stakes (a real site can go live) — ✅ shipped 2026-09-01
-1. **Navigation menus** — `menu` tools + admin editor + site header/footer render; AI can "add Pricing to the nav".
-2. **Featured image + SEO meta** per post/page (title, description, OG image, noindex) with site output.
-3. **Trash / restore**, bulk actions, autosave.
-4. **Scheduler** — flips scheduled → published; foundation for agent schedules.
-5. **Site design settings** — logo, colors, fonts, custom CSS → CSS variables the blocks already consume; exposed as `design.*` tools.
-6. **Image processing** — sharp resizing, srcset, upload size cap; S3-compatible storage driver.
-7. **Public search** + RSS feed.
+### Shipped ✅
+- **Phase A** (2026-09-01): menus, featured image + SEO, trash/bulk/autosave, scheduler, design settings, image variants + S3, public search + RSS.
+- **WordPress importer (WXR)** + JSON site export — the adoption path.
+- **Production mode**: single container (admin at `/admin`, site reverse-proxied), Dockerfile/compose/fly, rate limits, retention pruning, secure cookies/headers, graceful shutdown, `docs/DEPLOY.md`.
+- **Site chat**: in-admin agent over the tool registry — reads execute, mutations become reviewable plans with diffs (⌘J).
+- **WYSIWYG editor** everywhere prose is edited; storage stays Markdown.
+- **Site templates**: pure-data `SiteTemplate` format, 4 built-ins (Lift, Atelier, Ledger, Corner), live-preview gallery, import/export, `template.*` tools.
 
-### Phase B — multi-author & adoption
-8. **Email layer** (Resend/SMTP driver) → invites, password reset.
-9. **Roles**: author, contributor; **pending review** status with approve/reject — the same queue reviews *agent* proposals.
-10. **WordPress importer** (WXR → posts/pages/media/tags/users) + JSON export.
-11. **Redirects** manager (auto-create on slug change) + 404 log.
-12. **Page hierarchy** (parent) + permalink patterns.
+### Phase B — teams & trust (next)
+1. **Email layer** (SMTP/Resend driver) → invites, password reset, notifications.
+2. **Roles**: author, contributor; **pending review** status with approve/reject — doubles as the approval queue for agent-written content.
+3. **Redirects** manager (auto-created on slug change, importer-aware) + 404 log.
+4. **Page hierarchy** (parent) + permalink patterns.
 
 ### Phase C — the platform play
-13. **Collections** (custom content types with schema-defined fields — wove's CPT+ACF): defined in admin or by plugins, auto-get tools/MCP/OpenAPI/list views/blocks.
-14. Plugin admin UI extension points, filters, install from admin, registry.
-15. Postgres driver; multiple themes; header/footer block areas.
+5. **Collections** — schema-defined custom content types (events, products, team…) that automatically get tools/MCP/OpenAPI/list views and a block to render them (the CPT+ACF replacement).
+6. Plugin maturity: filters, admin UI extension points, install from admin, a registry.
+7. **Postgres driver**; multiple code themes; header/footer block areas; container queries in blocks.css (true mobile preview).
 
-### Phase D — agent-native features WordPress can't do
-16. **Site chat** in admin: an in-product agent that uses the tool registry ("create a pricing page, link it in the nav, publish Monday") with a review-before-apply diff.
-17. **Agent schedules** ("every Monday draft a post on…") + **webhooks** (post.published → URL).
-18. **Semantic search / embeddings** across content — powers public search, related posts, and an agent `content.search` tool.
-19. Image generation for blocks; brand voice profile beyond the system prompt.
+### Phase D — only Wove can do this
+8. ~~Site chat~~ ✅ shipped.
+9. **Agent schedules** ("every Monday draft…") + **webhooks** (post.published → URL).
+10. **Semantic search / embeddings** — public search, related posts, and a `content.search` tool for agents.
+11. Image generation for blocks; brand voice profile.
+
+### Marketplace (with the cloud edition)
+12. Template registry on usewove.com — browse/purchase → the JSON applies; `template.export` already makes every user an author. Review is cheap because templates are data, not code.
