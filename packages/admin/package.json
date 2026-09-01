@@ -13,6 +13,7 @@
   "dependencies": {
     "@agentpress/sdk": "workspace:*",
     "@tanstack/react-query": "^5.59.0",
+    "lucide-react": "^1.39.0",
     "marked": "^13.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -1,8 +1,9 @@
 import { useRef } from "react";
+import { Copy, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import type { Media as MediaItem } from "@agentpress/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
-import { Button, Card, ErrorBanner, Spinner, errorMessage } from "../components/ui";
+import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, errorMessage } from "../components/ui";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -35,14 +36,11 @@ function MediaCard({ item, onDelete, isDeleting }: { item: MediaItem; onDelete: 
     }
   }
 
+  const filename = item.path.split("/").pop();
+
   return (
-    <Card className="flex flex-col gap-2 p-3">
-      <button
-        type="button"
-        onClick={copyUrl}
-        className="block aspect-square w-full overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800"
-        title="Click to copy URL"
-      >
+    <div className="group">
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900">
         <img
           src={item.url}
           alt={item.alt ?? ""}
@@ -55,29 +53,44 @@ function MediaCard({ item, onDelete, isDeleting }: { item: MediaItem; onDelete: 
         />
         <div
           data-fallback
-          className="hidden h-full w-full flex-col items-center justify-center p-2 text-center text-xs text-zinc-500 dark:text-zinc-400"
+          className="absolute inset-0 hidden flex-col items-center justify-center gap-1 p-2 text-center text-xs text-zinc-500 dark:text-zinc-400"
         >
-          <span className="truncate w-full">{item.path.split("/").pop()}</span>
+          <ImageIcon className="h-5 w-5" aria-hidden="true" />
+          <span className="w-full truncate">{filename}</span>
           <span>{item.mime}</span>
         </div>
-      </button>
-      <div className="min-w-0">
+
+        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-zinc-950/60 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={copyUrl}
+            aria-label={`Copy URL for ${filename}`}
+            title="Copy URL"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/90 text-zinc-900 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onDelete}
+            aria-label={`Delete ${filename}`}
+            title="Delete"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div className="mt-1.5 min-w-0">
         <div className="truncate text-xs font-medium" title={item.path}>
-          {item.path.split("/").pop()}
+          {filename}
         </div>
         <div className="text-xs text-zinc-500 dark:text-zinc-400">
           {item.mime} · {formatSize(item.size)}
         </div>
       </div>
-      <div className="flex gap-2">
-        <Button variant="secondary" className="flex-1" onClick={copyUrl}>
-          Copy URL
-        </Button>
-        <Button variant="danger" disabled={isDeleting} onClick={onDelete}>
-          Delete
-        </Button>
-      </div>
-    </Card>
+    </div>
   );
 }
 
@@ -116,39 +129,54 @@ export function Media() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Media</h1>
-        <div>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
-          <Button variant="primary" disabled={upload.isPending} onClick={() => fileInputRef.current?.click()}>
-            {upload.isPending ? "Uploading…" : "Upload"}
-          </Button>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Media"
+        subtitle="Images and files available to your content"
+        actions={
+          <>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
+            <Button variant="primary" disabled={upload.isPending} onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+              {upload.isPending ? "Uploading…" : "Upload"}
+            </Button>
+          </>
+        }
+      />
 
       {list.isLoading && <Spinner />}
       {list.isError && <ErrorBanner message={errorMessage(list.error)} />}
 
-      {list.data && list.data.items.length === 0 && (
-        <div className="text-sm text-zinc-500 dark:text-zinc-400">No media yet.</div>
-      )}
-
-      {list.data && list.data.items.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {list.data.items.map((item) => (
-            <MediaCard
-              key={item.id}
-              item={item}
-              isDeleting={del.isPending}
-              onDelete={() => {
-                if (window.confirm(`Delete "${item.path.split("/").pop()}"? This cannot be undone.`)) {
-                  del.mutate({ id: item.id });
-                }
-              }}
+      {list.data && (
+        <Card className={list.data.items.length === 0 ? "p-0" : ""}>
+          {list.data.items.length === 0 ? (
+            <EmptyState
+              icon={<ImageIcon className="h-5 w-5" />}
+              title="No media yet"
+              description="Upload an image or file to use it in your posts and pages."
+              action={
+                <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
+                  Upload media
+                </Button>
+              }
             />
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              {list.data.items.map((item) => (
+                <MediaCard
+                  key={item.id}
+                  item={item}
+                  isDeleting={del.isPending}
+                  onDelete={() => {
+                    if (window.confirm(`Delete "${item.path.split("/").pop()}"? This cannot be undone.`)) {
+                      del.mutate({ id: item.id });
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </Card>
       )}
     </div>
   );

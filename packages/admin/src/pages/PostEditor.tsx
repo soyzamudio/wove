@@ -1,14 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { marked } from "marked";
+import { ExternalLink, History, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
 import type { Post } from "@agentpress/sdk";
 import { streamAi, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";
-import { Button, Card, ErrorBanner, Input, Label, Spinner, Textarea, errorMessage } from "../components/ui";
+import {
+  Button,
+  Card,
+  ErrorBanner,
+  Input,
+  Label,
+  PageHeader,
+  SegmentedControl,
+  Select,
+  SlideOver,
+  Spinner,
+  Textarea,
+  errorMessage,
+} from "../components/ui";
 
 type Status = "draft" | "published" | "scheduled";
+type ViewMode = "edit" | "preview" | "split";
 
 const REWRITE_CHIPS = ["Make it shorter", "Fix grammar", "More formal", "Add a summary"];
 
@@ -38,6 +53,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
 
   const postQuery = useToolQuery("post.get", { id: id ?? "" }, { enabled: !isCreate });
   const categoriesQuery = useToolQuery("term.list", { taxonomy: "category" });
+  const siteQuery = useToolQuery("site.info", {});
 
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -50,6 +66,11 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const [category, setCategory] = useState("");
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [showRevisions, setShowRevisions] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<ViewMode>(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches ? "split" : "edit"
+  );
 
   // ---- AI: draft / rewrite -------------------------------------------------
   const aiConfigQuery = useToolQuery("ai.config", {});
@@ -157,6 +178,15 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   useEffect(() => {
     if (!slugTouched) setSlug(slugify(title));
   }, [title, slugTouched]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    }
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
 
   // Populate form from loaded post (edit mode), once per post id.
   useEffect(() => {
@@ -293,144 +323,47 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   }
 
   const saving = createMutation.isPending || updateMutation.isPending;
+  const siteUrl = (siteQuery.data?.settings.siteUrl ?? "").replace(/\/$/, "");
+  const publicUrl = siteUrl && slug ? `${siteUrl}/${slug}` : "";
 
   if (!isCreate && postQuery.isLoading) return <Spinner />;
   if (!isCreate && postQuery.isError) return <ErrorBanner message={errorMessage(postQuery.error)} />;
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">
-          {isCreate ? `New ${noun}` : `Edit ${noun}`}
-        </h1>
-        <div className="flex gap-2">
-          {!isCreate && (
-            <Button variant="secondary" onClick={toggleRevisions}>
-              Revisions
+  const aiPanel = (
+    <div className="space-y-3">
+      {aiConfigured ? (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={drafting || rewriting}
+              onClick={() => {
+                setShowDraft((v) => !v);
+                setShowRewrite(false);
+              }}
+            >
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
+              Draft with AI
             </Button>
-          )}
-          {!isCreate && status !== "published" && (
-            <Button variant="secondary" disabled={publishMutation.isPending} onClick={handlePublish}>
-              Publish
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={!hasSelection || drafting || rewriting}
+              onClick={() => {
+                setShowRewrite((v) => !v);
+                setShowDraft(false);
+              }}
+              title={hasSelection ? undefined : "Select some text in the content to rewrite it"}
+            >
+              Rewrite selection
             </Button>
-          )}
-          {!isCreate && (
-            <Button variant="danger" disabled={deleteMutation.isPending} onClick={handleDelete}>
-              Delete
-            </Button>
-          )}
-          <Button variant="primary" disabled={saving} onClick={handleSave}>
-            Save
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card>
-          <Label>Title</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Card>
-        <Card>
-          <Label>Slug</Label>
-          <Input
-            value={slug}
-            onChange={(e) => {
-              setSlugTouched(true);
-              setSlug(e.target.value);
-            }}
-          />
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <Label>Status</Label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as Status)}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="scheduled">Scheduled</option>
-          </select>
-        </Card>
-        <Card>
-          <Label>Published at</Label>
-          <input
-            type="datetime-local"
-            value={publishedAtLocal}
-            onChange={(e) => setPublishedAtLocal(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          />
-        </Card>
-        <Card>
-          <Label>Excerpt</Label>
-          <Input value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card>
-          <Label>Tags (comma-separated)</Label>
-          <Input value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="tag-one, tag-two" />
-        </Card>
-        <Card>
-          <Label>Category</Label>
-          <Input value={category} onChange={(e) => setCategory(e.target.value)} list="category-suggestions" />
-          <datalist id="category-suggestions">
-            {(categoriesQuery.data ?? []).map((term) => (
-              <option key={term.id} value={term.name} />
-            ))}
-          </datalist>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <Label>Content (markdown)</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              {aiConfigured ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={drafting || rewriting}
-                    onClick={() => {
-                      setShowDraft((v) => !v);
-                      setShowRewrite(false);
-                    }}
-                  >
-                    Draft with AI
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={!hasSelection || drafting || rewriting}
-                    onClick={() => {
-                      setShowRewrite((v) => !v);
-                      setShowDraft(false);
-                    }}
-                    title={hasSelection ? undefined : "Select some text in the content to rewrite it"}
-                  >
-                    Rewrite selection
-                  </Button>
-                </>
-              ) : (
-                <Link
-                  to="/settings"
-                  className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-                  title="AI is not configured yet"
-                >
-                  Configure AI in Settings
-                </Link>
-              )}
-            </div>
           </div>
 
           {showDraft && (
-            <div className="mb-3 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
               <Label>Prompt</Label>
               <Textarea
                 rows={3}
@@ -441,15 +374,15 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
               />
               <div className="flex gap-2">
                 {!drafting ? (
-                  <Button type="button" variant="primary" disabled={!draftPrompt.trim()} onClick={startDraft}>
+                  <Button type="button" variant="primary" size="sm" disabled={!draftPrompt.trim()} onClick={startDraft}>
                     Generate
                   </Button>
                 ) : (
-                  <Button type="button" variant="danger" onClick={stopDraft}>
+                  <Button type="button" variant="danger" size="sm" onClick={stopDraft}>
                     Stop
                   </Button>
                 )}
-                <Button type="button" variant="secondary" disabled={drafting} onClick={() => setShowDraft(false)}>
+                <Button type="button" variant="ghost" size="sm" disabled={drafting} onClick={() => setShowDraft(false)}>
                   Close
                 </Button>
               </div>
@@ -457,7 +390,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
           )}
 
           {showRewrite && (
-            <div className="mb-3 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
               <Label>Rewrite instruction</Label>
               <div className="flex flex-wrap gap-1.5">
                 {REWRITE_CHIPS.map((chip) => (
@@ -466,7 +399,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
                     type="button"
                     disabled={rewriting}
                     onClick={() => setRewriteInstruction(chip)}
-                    className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-600 transition-colors hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-blue-400"
                   >
                     {chip}
                   </button>
@@ -483,71 +416,254 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
                   <Button
                     type="button"
                     variant="primary"
+                    size="sm"
                     disabled={!rewriteInstruction.trim() || !hasSelection}
                     onClick={() => startRewrite(rewriteInstruction)}
                   >
                     Rewrite
                   </Button>
                 ) : (
-                  <Button type="button" variant="danger" onClick={stopRewrite}>
+                  <Button type="button" variant="danger" size="sm" onClick={stopRewrite}>
                     Stop
                   </Button>
                 )}
-                <Button type="button" variant="secondary" disabled={rewriting} onClick={() => setShowRewrite(false)}>
+                <Button type="button" variant="ghost" size="sm" disabled={rewriting} onClick={() => setShowRewrite(false)}>
                   Close
                 </Button>
               </div>
             </div>
           )}
+        </>
+      ) : (
+        <Link
+          to="/settings"
+          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+          title="AI is not configured yet"
+        >
+          Configure AI in Settings →
+        </Link>
+      )}
+    </div>
+  );
 
-          <textarea
-            ref={contentRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onSelect={trackSelection}
-            onKeyUp={trackSelection}
-            onMouseUp={trackSelection}
-            rows={20}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          />
-        </Card>
-        <Card>
-          <Label>Preview</Label>
-          <div
-            className="prose prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        </Card>
-      </div>
-
-      {showRevisions && (
-        <div className="fixed inset-y-0 right-0 z-40 w-full max-w-sm overflow-y-auto border-l border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Revisions</h2>
-            <Button variant="secondary" onClick={() => setShowRevisions(false)}>
-              Close
-            </Button>
-          </div>
-          {revisionsQuery.isLoading && <Spinner />}
-          {revisionsQuery.isError && <ErrorBanner message={errorMessage(revisionsQuery.error)} />}
-          <div className="space-y-2">
-            {(revisionsQuery.data ?? []).map((rev) => (
-              <Card key={rev.id}>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="font-medium">{rev.title || "(untitled)"}</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">{relativeTime(rev.ts)}</span>
-                </div>
-                <Button variant="secondary" onClick={() => restoreRevision(rev)}>
-                  Restore
+  return (
+    <div>
+      <PageHeader
+        title={isCreate ? `New ${noun}` : `Edit ${noun}: ${title || "(untitled)"}`}
+        actions={
+          <>
+            {!isCreate && status === "published" && publicUrl && (
+              <a href={publicUrl} target="_blank" rel="noreferrer">
+                <Button variant="secondary">
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  Visit
                 </Button>
+              </a>
+            )}
+            {!isCreate && (
+              <Button variant="secondary" disabled={saving} onClick={handleSave}>
+                {status === "published" ? "Save" : "Save draft"}
+              </Button>
+            )}
+            {isCreate ? (
+              <Button variant="primary" disabled={saving} onClick={handleSave}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            ) : status === "published" ? (
+              <Button variant="primary" disabled={saving} onClick={handleSave}>
+                {saving ? "Saving…" : "Update"}
+              </Button>
+            ) : (
+              <Button variant="primary" disabled={publishMutation.isPending} onClick={handlePublish}>
+                {publishMutation.isPending ? "Publishing…" : "Publish"}
+              </Button>
+            )}
+            {!isCreate && (
+              <div className="relative" ref={menuRef}>
+                <Button
+                  variant="ghost"
+                  aria-label="More actions"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  onClick={() => setMenuOpen((v) => !v)}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        toggleRevisions();
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    >
+                      <History className="h-3.5 w-3.5" aria-hidden="true" />
+                      Revisions
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        handleDelete();
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-4">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            aria-label="Title"
+            placeholder={`Add a ${noun} title…`}
+            className="w-full border-0 bg-transparent px-0 text-3xl font-semibold tracking-tight text-zinc-900 placeholder:text-zinc-300 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-700"
+          />
+
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Content (markdown)
+            </span>
+            <SegmentedControl
+              ariaLabel="Editor view"
+              value={view}
+              onChange={setView}
+              options={[
+                { label: "Edit", value: "edit" },
+                { label: "Preview", value: "preview" },
+                { label: "Split", value: "split" },
+              ]}
+            />
+          </div>
+
+          <div className={view === "split" ? "grid grid-cols-1 gap-4 xl:grid-cols-2" : "grid grid-cols-1 gap-4"}>
+            {view !== "preview" && (
+              <textarea
+                ref={contentRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onSelect={trackSelection}
+                onKeyUp={trackSelection}
+                onMouseUp={trackSelection}
+                rows={24}
+                aria-label="Markdown content"
+                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-mono text-sm text-zinc-900 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+              />
+            )}
+            {view !== "edit" && (
+              <Card className="min-h-[16rem] overflow-x-auto px-5 py-4">
+                <div className="ap-prose text-zinc-800 dark:text-zinc-200" dangerouslySetInnerHTML={{ __html: html }} />
               </Card>
-            ))}
-            {revisionsQuery.data && revisionsQuery.data.length === 0 && (
-              <div className="text-sm text-zinc-500 dark:text-zinc-400">No revisions yet.</div>
             )}
           </div>
         </div>
-      )}
+
+        <aside className="space-y-4">
+          <Card className="space-y-3">
+            <div>
+              <Label htmlFor="post-status">Status</Label>
+              <Select id="post-status" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="scheduled">Scheduled</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="post-slug">Slug</Label>
+              <Input
+                id="post-slug"
+                value={slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  setSlug(e.target.value);
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="post-published-at">Publish date</Label>
+              <Input
+                id="post-published-at"
+                type="datetime-local"
+                value={publishedAtLocal}
+                onChange={(e) => setPublishedAtLocal(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="post-excerpt">Excerpt</Label>
+              <Textarea id="post-excerpt" rows={3} value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="post-tags">Tags (comma-separated)</Label>
+              <Input
+                id="post-tags"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="tag-one, tag-two"
+              />
+            </div>
+            <div>
+              <Label htmlFor="post-category">Category</Label>
+              <Input
+                id="post-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                list="category-suggestions"
+              />
+              <datalist id="category-suggestions">
+                {(categoriesQuery.data ?? []).map((term) => (
+                  <option key={term.id} value={term.name} />
+                ))}
+              </datalist>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="mb-2 flex items-center gap-1.5 text-base font-semibold tracking-tight">
+              <Sparkles className="h-4 w-4 text-blue-600" aria-hidden="true" />
+              AI
+            </div>
+            {aiPanel}
+          </Card>
+        </aside>
+      </div>
+
+      <SlideOver open={showRevisions} onClose={() => setShowRevisions(false)} title="Revisions">
+        {revisionsQuery.isLoading && <Spinner />}
+        {revisionsQuery.isError && <ErrorBanner message={errorMessage(revisionsQuery.error)} />}
+        <div className="space-y-2">
+          {(revisionsQuery.data ?? []).map((rev) => (
+            <Card key={rev.id} className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{rev.title || "(untitled)"}</div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">{relativeTime(rev.ts)}</div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => restoreRevision(rev)}>
+                Restore
+              </Button>
+            </Card>
+          ))}
+          {revisionsQuery.data && revisionsQuery.data.length === 0 && (
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">No revisions yet.</div>
+          )}
+        </div>
+      </SlideOver>
     </div>
   );
 }

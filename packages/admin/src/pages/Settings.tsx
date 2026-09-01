@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Settings as SettingsType } from "@agentpress/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
-import { Button, Card, ErrorBanner, Input, Label, Spinner, errorMessage } from "../components/ui";
+import { Button, Card, ErrorBanner, Input, Label, PageHeader, Spinner, Tabs, errorMessage } from "../components/ui";
 import { SettingsAi } from "./SettingsAi";
 
 type SettingsTab = "site" | "ai";
@@ -47,24 +47,11 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div>
+      <PageHeader title="Settings" subtitle="Site identity and AI configuration" />
 
-      <div className="flex gap-1">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setTab(t.value)}
-            className={
-              "rounded-md px-3 py-1.5 text-sm font-medium " +
-              (tab === t.value
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800")
-            }
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mb-6">
+        <Tabs tabs={TABS} value={tab} onChange={setTab} />
       </div>
 
       {tab === "site" && (

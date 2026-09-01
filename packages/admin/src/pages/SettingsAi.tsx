@@ -5,12 +5,14 @@ import { useToast } from "../context/ToastContext";
 import { relativeTime } from "../lib/time";
 import {
   ActorBadge,
+  Badge,
   Button,
   Card,
   ChannelBadge,
   ErrorBanner,
   Input,
   Label,
+  Select,
   Spinner,
   Textarea,
   errorMessage,
@@ -130,7 +132,8 @@ export function SettingsAi() {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="space-y-6">
+      <div className="max-w-xl space-y-6">
       {config.isLoading && <Spinner />}
       {config.isError && <ErrorBanner message={errorMessage(config.error)} />}
 
@@ -140,28 +143,23 @@ export function SettingsAi() {
             <form onSubmit={submit} className="space-y-4">
               <div>
                 <Label>Provider</Label>
-                <select
+                <Select
                   value={form.provider}
                   onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value as AiProvider, model: "" }))}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                 >
                   {AiProvider.options.map((p) => (
                     <option key={p} value={p}>
                       {PROVIDER_LABELS[p]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
                 <Label>Model</Label>
                 <div className="flex items-center gap-2">
                   {models.length > 0 ? (
-                    <select
-                      value={form.model}
-                      onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
-                      className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                    >
+                    <Select value={form.model} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}>
                       {/* keep a saved custom id selectable even if the provider list doesn't include it */}
                       {form.model && !models.some((m) => m.id === form.model) && (
                         <option value={form.model}>{form.model}</option>
@@ -171,7 +169,7 @@ export function SettingsAi() {
                           {m.name ?? m.id}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   ) : (
                     <Input
                       value={form.model}
@@ -231,9 +229,7 @@ export function SettingsAi() {
           <Card>
             <div className="mb-1 flex items-center justify-between">
               <Label>API key</Label>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                {keySourceLabel(form)}
-              </span>
+              <Badge tone={form.keySource === "none" ? "amber" : "green"}>{keySourceLabel(form)}</Badge>
             </div>
             <div className="flex items-center gap-2">
               <Input
@@ -261,33 +257,39 @@ export function SettingsAi() {
         </>
       )}
 
+      </div>
+
       <div>
-        <h2 className="mb-2 text-lg font-semibold">Usage</h2>
+        <h2 className="mb-3 text-base font-semibold tracking-tight">Usage</h2>
 
         {usage.isLoading && <Spinner />}
         {usage.isError && <ErrorBanner message={errorMessage(usage.error)} />}
 
         {usage.data && (
           <>
-            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Card>
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">Calls</div>
-                <div className="text-3xl font-bold">{usage.data.totals.calls}</div>
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Card className="p-3">
+                <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Calls</div>
+                <div className="mt-0.5 text-2xl font-semibold tracking-tight">{usage.data.totals.calls}</div>
               </Card>
-              <Card>
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">Input tokens</div>
-                <div className="text-3xl font-bold">{usage.data.totals.inputTokens}</div>
+              <Card className="p-3">
+                <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Input tokens</div>
+                <div className="mt-0.5 text-2xl font-semibold tracking-tight">
+                  {usage.data.totals.inputTokens.toLocaleString()}
+                </div>
               </Card>
-              <Card>
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">Output tokens</div>
-                <div className="text-3xl font-bold">{usage.data.totals.outputTokens}</div>
+              <Card className="p-3">
+                <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Output tokens</div>
+                <div className="mt-0.5 text-2xl font-semibold tracking-tight">
+                  {usage.data.totals.outputTokens.toLocaleString()}
+                </div>
               </Card>
             </div>
             <div className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
               Token counts only; billing is applied by your hosting provider.
             </div>
 
-            <Card className="p-0">
+            <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
@@ -304,7 +306,10 @@ export function SettingsAi() {
                 </thead>
                 <tbody>
                   {usage.data.items.map((entry) => (
-                    <tr key={entry.id} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
+                    <tr
+                      key={entry.id}
+                      className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50 dark:border-zinc-800/80 dark:hover:bg-zinc-900"
+                    >
                       <td className="px-4 py-2 text-zinc-500 dark:text-zinc-400">{relativeTime(entry.ts)}</td>
                       <td className="px-4 py-2">
                         <ActorBadge kind={entry.actorKind} />
