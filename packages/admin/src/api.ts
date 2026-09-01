@@ -113,3 +113,118 @@ export function useInvalidateTool() {
   const qc = useQueryClient();
   return (name: ToolName) => qc.invalidateQueries({ queryKey: [name] });
 }
+
+// ---------------------------------------------------------------------------
+// AI streaming — POST /api/ai/stream (text/event-stream), outside the sdk
+// ToolCatalog since it streams rather than returning a single JSON result.
+// ---------------------------------------------------------------------------
+
+export type AiStreamBody =
+  | { kind: "generate"; prompt: string; postId?: string; maxTokens?: number }
+  | { kind: "rewrite"; text: string; instruction: string };
+
+export interface AiStreamDone {
+  usage: { inputTokens: number; outputTokens: number };
+  model: string;
+}
+
+export interface AiStreamErrorInfo {
+  code: string;
+  message: string;
+}
+
+export interface AiStreamHandlers {
+  onToken?: (text: string) => void;
+  onDone?: (info: AiStreamDone) => void;
+  onError?: (info: AiStreamErrorInfo) => void;
+  signal?: AbortSignal;
+}
+
+interface SseEvent {
+  event: string;
+  data: string;
+}
+
+/**
+ * Pure SSE parser: given the bytes accumulated so far, returns every complete
+ * `\n\n`-terminated event and the leftover (incomplete) tail to keep buffering.
+ * Handles multi-line `data:` fields (joined with `\n`, per the SSE spec) and a
+ * missing `event:` line (defaults to "message").
+ */
+export function parseSseBuffer(buffer: string): { events: SseEvent[]; rest: string } {
+  const normalized = buffer.replace(/\r\n/g, "\n");
+  const parts = normalized.split("\n\n");
+  const rest = parts.pop() ?? "";
+  const events: SseEvent[] = [];
+  for (const part of parts) {
+    if (!part.trim()) continue;
+    let event = "message";
+    const dataLines: string[] = [];
+    for (const line of part.split("\n")) {
+      if (line.startsWith("event:")) {
+        event = line.slice(6).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).replace(/^ /, ""));
+      }
+    }
+    events.push({ event, data: dataLines.join("\n") });
+  }
+  return { events, rest };
+}
+
+/**
+ * Streams `POST /api/ai/stream`. Emits tokens via onToken as they arrive,
+ * calls onDone once with final usage/model, or onError on failure. Pass an
+ * AbortController's signal to allow the caller to stop the stream.
+ */
+export async function streamAi(body: AiStreamBody, handlers: AiStreamHandlers = {}): Promise<void> {
+  const { onToken, onDone, onError, signal } = handlers;
+  let res: Response;
+  try {
+    res = await channelFetch(`${API_URL}/api/ai/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") return;
+    onError?.({ code: "network_error", message: err?.message ?? String(err) });
+    return;
+  }
+
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({}));
+    onError?.({ code: data.code ?? "error", message: data.message ?? res.statusText });
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = parseSseBuffer(buffer);
+      buffer = rest;
+      for (const evt of events) {
+        if (!evt.data) continue;
+        let data: any;
+        try {
+          data = JSON.parse(evt.data);
+        } catch {
+          continue;
+        }
+        if (evt.event === "token") onToken?.(data.text ?? "");
+        else if (evt.event === "done") onDone?.(data as AiStreamDone);
+        else if (evt.event === "error") onError?.(data as AiStreamErrorInfo);
+      }
+    }
+  } catch (err: any) {
+    if (err?.name === "AbortError") return;
+    onError?.({ code: "network_error", message: err?.message ?? String(err) });
+  }
+}

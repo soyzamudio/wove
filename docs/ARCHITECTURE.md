@@ -46,3 +46,15 @@ Multi-tenant control plane: one core process per tenant DB (SQLite on volume →
 ## Ports
 
 core `4000` · admin `5173` · site `4321`
+
+## AI authoring
+
+Built-in, provider-agnostic, and exposed as tools (`ai.*`) so agents get the same capability over MCP.
+
+**Providers** via official SDKs only: `@anthropic-ai/sdk` (Anthropic), `openai` (OpenAI, xAI/Grok, and any OpenAI-compatible endpoint such as Ollama/LM Studio/OpenRouter via `baseUrl`), `@google/genai` (Google). Adapters live in `packages/core/src/ai/providers/`; each implements `generate`, `stream`, `listModels`.
+
+**Key resolution** (per call): site key (BYOK, stored AES-256-GCM-encrypted under `AGENTPRESS_SECRET`) → platform key from `AGENTPRESS_AI_<PROVIDER>_KEY` → none (actionable error). `ai.config` reports `keySource: byok | platform | none` and a masked hint; the key is never returned.
+
+**Metering**: every provider call writes an `ai_usage` row (actor, channel, tool, provider, model, input/output tokens, keySource, duration, ok). Core records **tokens only — no prices**. The OSS admin shows totals; the cloud edition prices `keySource=platform` rows.
+
+**Surfaces**: `ai.generate` / `ai.rewrite` (text), `ai.draftPost` (creates a draft), `ai.config` / `ai.configure` / `ai.models` / `ai.test` (setup), `ai.usage` (metering); plus `POST /api/ai/stream` (SSE) for the editor. Scope `ai:use` gates generation.

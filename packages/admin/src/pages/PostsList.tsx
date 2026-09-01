@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useToolQuery } from "../api";
+import { Link, useNavigate } from "react-router-dom";
+import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
-import { Button, Card, ErrorBanner, Input, Spinner, StatusPill, errorMessage } from "../components/ui";
+import { useToast } from "../context/ToastContext";
+import { Button, Card, ErrorBanner, Input, Label, Spinner, StatusPill, Textarea, errorMessage } from "../components/ui";
 
 type StatusFilter = "all" | "draft" | "published" | "scheduled";
 
@@ -17,9 +18,17 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [q, setQ] = useState("");
   const [qInput, setQInput] = useState("");
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftPrompt, setDraftPrompt] = useState("");
+  const [draftTags, setDraftTags] = useState("");
+
+  const navigate = useNavigate();
+  const toast = useToast();
+  const invalidate = useInvalidateTool();
 
   const basePath = postType === "post" ? "/posts" : "/pages";
   const heading = postType === "post" ? "Posts" : "Pages";
+  const noun = postType === "post" ? "Post" : "Page";
 
   const list = useToolQuery("post.list", {
     type: postType,
@@ -28,14 +37,91 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
     limit: 50,
   });
 
+  const draftMutation = useToolMutation("ai.draftPost", {
+    onSuccess: (created) => {
+      toast.success(`${noun} drafted`);
+      invalidate("post.list");
+      closeDraftModal();
+      navigate(`${basePath}/${created.id}`);
+    },
+    onError: (err) => toast.error(errorMessage(err)),
+  });
+
+  function closeDraftModal() {
+    setDraftOpen(false);
+    setDraftPrompt("");
+    setDraftTags("");
+  }
+
+  function handleGenerate() {
+    const terms = draftTags
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((name) => ({ taxonomy: "tag", name }));
+    draftMutation.mutate({
+      prompt: draftPrompt,
+      type: postType,
+      terms: terms.length > 0 ? terms : undefined,
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{heading}</h1>
-        <Link to={`${basePath}/new`}>
-          <Button variant="primary">New</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setDraftOpen(true)}>
+            Draft with AI
+          </Button>
+          <Link to={`${basePath}/new`}>
+            <Button variant="primary">New</Button>
+          </Link>
+        </div>
       </div>
+
+      {draftOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <Card className="w-full max-w-lg space-y-4">
+            <h2 className="text-lg font-semibold">Draft {noun.toLowerCase()} with AI</h2>
+
+            <div>
+              <Label>Prompt</Label>
+              <Textarea
+                rows={5}
+                value={draftPrompt}
+                onChange={(e) => setDraftPrompt(e.target.value)}
+                placeholder={`Describe the ${noun.toLowerCase()} you want to generate…`}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Tags (comma-separated)</Label>
+              <Input
+                value={draftTags}
+                onChange={(e) => setDraftTags(e.target.value)}
+                placeholder="tag-one, tag-two"
+              />
+            </div>
+
+            {draftMutation.isError && <ErrorBanner message={errorMessage(draftMutation.error)} />}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeDraftModal} disabled={draftMutation.isPending}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleGenerate}
+                disabled={draftMutation.isPending || draftPrompt.trim().length === 0}
+              >
+                {draftMutation.isPending ? "Generating…" : "Generate"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1">

@@ -1,4 +1,4 @@
-import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes } from "react";
+import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { AgentpressError } from "../api";
 
 export function errorMessage(err: unknown): string {
@@ -81,6 +81,18 @@ export function Button({
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
+      {...props}
+      className={
+        "w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 " +
+        (props.className ?? "")
+      }
+    />
+  );
+}
+
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
       {...props}
       className={
         "w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 " +

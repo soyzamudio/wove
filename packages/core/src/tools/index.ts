@@ -6,9 +6,10 @@ import { mediaTools } from "./media";
 import { settingsTools } from "./settings";
 import { agentTools } from "./agents";
 import { auditTools } from "./audit";
+import { aiTools } from "./ai";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */

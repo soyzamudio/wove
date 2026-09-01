@@ -8,7 +8,13 @@ import type { DB } from "./db";
 import { posts, postTerms, terms as termsTable, users } from "./db/schema";
 import type { Hooks } from "./hooks";
 import { hooks as defaultHooks } from "./hooks";
-import { registry as defaultRegistry, dispatch, type Registry } from "./tools/registry";
+import { auditCall, hasScopes, registry as defaultRegistry, dispatch, ToolError, type Ctx, type Registry } from "./tools/registry";
+import { streamSSE } from "hono/streaming";
+import { generateSystemPrompt } from "./tools/ai";
+import { readAiSettings } from "./ai/keys";
+import { DEFAULT_MAX_TOKENS } from "./ai/defaults";
+import { openSession, recordUsage } from "./ai/run";
+import { rewriteSystem } from "./ai/prompts";
 import { decodeCursor, encodeCursor, hydratePost, hydratePosts, readSettings } from "./tools/shared";
 import { mediaDir, safeFilename } from "./tools/media";
 import {
@@ -117,6 +123,102 @@ export function createApp(deps: AppDeps) {
     const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks }, registry);
     if (!result.ok) return c.json(result.error, result.status as 400);
     return c.json(result.data as object);
+  });
+
+
+  // ------------------------------------------------------------ AI streaming
+  const AiStreamInput = z.discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("generate"),
+      prompt: z.string().min(1),
+      postId: z.string().min(1).optional(),
+      maxTokens: z.number().int().min(64).max(64000).optional(),
+    }),
+    z.object({
+      kind: z.literal("rewrite"),
+      text: z.string().min(1),
+      instruction: z.string().min(1),
+    }),
+  ]);
+
+  /**
+   * Token-by-token counterpart of `ai.generate` / `ai.rewrite`. Same auth as the tool
+   * endpoint; emits `token`, then `done` (or `error`). Audit + ai_usage rows are written
+   * exactly as the tools would write them.
+   */
+  app.post("/api/ai/stream", async (c) => {
+    const { actor } = resolveActor(db, c.req.raw);
+    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    const ctx: Ctx = { actor, channel, db, hooks };
+    const raw = await c.req.json().catch(() => ({}));
+
+    const parsed = AiStreamInput.safeParse(raw);
+    if (!parsed.success) return c.json(err("validation_error", "Invalid stream payload", parsed.error.flatten()), 400);
+    const input = parsed.data;
+    const tool = input.kind === "generate" ? "ai.generate" : "ai.rewrite";
+
+    if (actor.kind === "anon") {
+      auditCall(ctx, tool, input, false, "Authentication required");
+      return c.json(err("unauthenticated", "Authentication required"), 401);
+    }
+    if (!hasScopes(actor, ["ai:use"])) {
+      auditCall(ctx, tool, input, false, "Missing scope(s): ai:use");
+      return c.json(err("forbidden", "Missing scope(s): ai:use", { required: ["ai:use"], granted: actor.scopes }), 403);
+    }
+
+    // Everything that can fail synchronously (missing key, unknown post) fails as JSON,
+    // before a single SSE byte goes out.
+    let session: Awaited<ReturnType<typeof openSession>>;
+    let system: string;
+    let prompt: string;
+    try {
+      const settings = readAiSettings(db);
+      session = await openSession(
+        ctx,
+        input.kind === "generate" ? input.maxTokens ?? DEFAULT_MAX_TOKENS : DEFAULT_MAX_TOKENS,
+      );
+      if (input.kind === "generate") {
+        system = generateSystemPrompt(ctx, settings.systemPrompt, input.postId);
+        prompt = input.prompt;
+      } else {
+        system = rewriteSystem(session.system, input.instruction);
+        prompt = input.text;
+      }
+    } catch (e) {
+      const te = e instanceof ToolError ? e : new ToolError("internal_error", (e as Error).message);
+      auditCall(ctx, tool, input, false, te.message);
+      return c.json(err(te.code, te.message, te.details), te.status as 400);
+    }
+
+    const meta = { tool, provider: session.provider, model: session.model, keySource: session.keySource };
+
+    return streamSSE(c, async (stream) => {
+      const started = performance.now();
+      try {
+        let done = false;
+        for await (const ev of session.client.stream({ system, prompt, maxTokens: session.maxTokens })) {
+          if (ev.type === "token") {
+            await stream.writeSSE({ event: "token", data: JSON.stringify({ text: ev.text }) });
+          } else {
+            done = true;
+            recordUsage(ctx, { ...meta, usage: ev.usage, durationMs: performance.now() - started, ok: true });
+            auditCall(ctx, tool, input, true, null);
+            await stream.writeSSE({ event: "done", data: JSON.stringify({ usage: ev.usage, model: ev.model }) });
+          }
+        }
+        if (!done) {
+          const usage = { inputTokens: 0, outputTokens: 0 };
+          recordUsage(ctx, { ...meta, usage, durationMs: performance.now() - started, ok: true });
+          auditCall(ctx, tool, input, true, null);
+          await stream.writeSSE({ event: "done", data: JSON.stringify({ usage, model: session.model }) });
+        }
+      } catch (e) {
+        const te = e instanceof ToolError ? e : new ToolError("internal_error", (e as Error)?.message ?? "Stream failed");
+        recordUsage(ctx, { ...meta, usage: { inputTokens: 0, outputTokens: 0 }, durationMs: performance.now() - started, ok: false });
+        auditCall(ctx, tool, input, false, te.message);
+        await stream.writeSSE({ event: "error", data: JSON.stringify({ code: te.code, message: te.message }) });
+      }
+    });
   });
 
   // ------------------------------------------------------------ public reads

@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { marked } from "marked";
 import type { Post } from "@agentpress/sdk";
-import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
+import { streamAi, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";
-import { Button, Card, ErrorBanner, Input, Label, Spinner, errorMessage } from "../components/ui";
+import { Button, Card, ErrorBanner, Input, Label, Spinner, Textarea, errorMessage } from "../components/ui";
 
 type Status = "draft" | "published" | "scheduled";
+
+const REWRITE_CHIPS = ["Make it shorter", "Fix grammar", "More formal", "Add a summary"];
 
 function isoToLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -48,6 +50,109 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
   const [category, setCategory] = useState("");
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [showRevisions, setShowRevisions] = useState(false);
+
+  // ---- AI: draft / rewrite -------------------------------------------------
+  const aiConfigQuery = useToolQuery("ai.config", {});
+  const aiConfigured = !!aiConfigQuery.data && aiConfigQuery.data.keySource !== "none";
+
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const hasSelection = selection.end > selection.start;
+
+  function trackSelection() {
+    const el = contentRef.current;
+    if (!el) return;
+    setSelection({ start: el.selectionStart, end: el.selectionEnd });
+  }
+
+  const [showDraft, setShowDraft] = useState(false);
+  const [draftPrompt, setDraftPrompt] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const draftAbortRef = useRef<AbortController | null>(null);
+
+  function startDraft() {
+    if (!draftPrompt.trim() || drafting) return;
+    const hasExistingContent = content.trim().length > 0;
+    const insertPos = hasExistingContent ? (contentRef.current?.selectionStart ?? content.length) : 0;
+    const prefix = hasExistingContent ? content.slice(0, insertPos) : "";
+    const suffix = hasExistingContent ? content.slice(insertPos) : "";
+    let acc = "";
+    const controller = new AbortController();
+    draftAbortRef.current = controller;
+    setDrafting(true);
+    streamAi(
+      { kind: "generate", prompt: draftPrompt, postId: isCreate ? undefined : id },
+      {
+        signal: controller.signal,
+        onToken: (t) => {
+          acc += t;
+          setContent(prefix + acc + suffix);
+        },
+        onDone: (info) => {
+          setDrafting(false);
+          draftAbortRef.current = null;
+          toast.success(`Generated ${info.usage.outputTokens} tokens (${info.model})`);
+        },
+        onError: (e) => {
+          setDrafting(false);
+          draftAbortRef.current = null;
+          toast.error(e.message);
+        },
+      }
+    );
+  }
+
+  function stopDraft() {
+    draftAbortRef.current?.abort();
+    draftAbortRef.current = null;
+    setDrafting(false);
+  }
+
+  const [showRewrite, setShowRewrite] = useState(false);
+  const [rewriteInstruction, setRewriteInstruction] = useState("");
+  const [rewriting, setRewriting] = useState(false);
+  const rewriteAbortRef = useRef<AbortController | null>(null);
+
+  function startRewrite(instruction: string) {
+    const text = instruction.trim();
+    if (!text || rewriting) return;
+    const { start, end } = selection;
+    const selectedText = content.slice(start, end);
+    if (!selectedText) return;
+    let acc = "";
+    const controller = new AbortController();
+    rewriteAbortRef.current = controller;
+    setRewriting(true);
+    streamAi(
+      { kind: "rewrite", text: selectedText, instruction: text },
+      {
+        signal: controller.signal,
+        onToken: (t) => {
+          // Accumulate only — replace the selection once on done rather than fighting the caret mid-stream.
+          acc += t;
+        },
+        onDone: (info) => {
+          setContent((cur) => cur.slice(0, start) + acc + cur.slice(end));
+          setRewriting(false);
+          rewriteAbortRef.current = null;
+          setShowRewrite(false);
+          setRewriteInstruction("");
+          toast.success(`Rewrote selection (${info.usage.outputTokens} tokens)`);
+        },
+        onError: (e) => {
+          setRewriting(false);
+          rewriteAbortRef.current = null;
+          toast.error(e.message);
+        },
+      }
+    );
+  }
+
+  function stopRewrite() {
+    rewriteAbortRef.current?.abort();
+    rewriteAbortRef.current = null;
+    setRewriting(false);
+  }
 
   useEffect(() => {
     if (!slugTouched) setSlug(slugify(title));
@@ -283,10 +388,125 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card>
-          <Label>Content (markdown)</Label>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <Label>Content (markdown)</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              {aiConfigured ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={drafting || rewriting}
+                    onClick={() => {
+                      setShowDraft((v) => !v);
+                      setShowRewrite(false);
+                    }}
+                  >
+                    Draft with AI
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!hasSelection || drafting || rewriting}
+                    onClick={() => {
+                      setShowRewrite((v) => !v);
+                      setShowDraft(false);
+                    }}
+                    title={hasSelection ? undefined : "Select some text in the content to rewrite it"}
+                  >
+                    Rewrite selection
+                  </Button>
+                </>
+              ) : (
+                <Link
+                  to="/settings"
+                  className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+                  title="AI is not configured yet"
+                >
+                  Configure AI in Settings
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {showDraft && (
+            <div className="mb-3 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+              <Label>Prompt</Label>
+              <Textarea
+                rows={3}
+                value={draftPrompt}
+                onChange={(e) => setDraftPrompt(e.target.value)}
+                placeholder="What should the AI write about?"
+                disabled={drafting}
+              />
+              <div className="flex gap-2">
+                {!drafting ? (
+                  <Button type="button" variant="primary" disabled={!draftPrompt.trim()} onClick={startDraft}>
+                    Generate
+                  </Button>
+                ) : (
+                  <Button type="button" variant="danger" onClick={stopDraft}>
+                    Stop
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" disabled={drafting} onClick={() => setShowDraft(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {showRewrite && (
+            <div className="mb-3 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+              <Label>Rewrite instruction</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {REWRITE_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    disabled={rewriting}
+                    onClick={() => setRewriteInstruction(chip)}
+                    className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+              <Input
+                value={rewriteInstruction}
+                onChange={(e) => setRewriteInstruction(e.target.value)}
+                placeholder="e.g. Make it shorter"
+                disabled={rewriting}
+              />
+              <div className="flex gap-2">
+                {!rewriting ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={!rewriteInstruction.trim() || !hasSelection}
+                    onClick={() => startRewrite(rewriteInstruction)}
+                  >
+                    Rewrite
+                  </Button>
+                ) : (
+                  <Button type="button" variant="danger" onClick={stopRewrite}>
+                    Stop
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" disabled={rewriting} onClick={() => setShowRewrite(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+
           <textarea
+            ref={contentRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onSelect={trackSelection}
+            onKeyUp={trackSelection}
+            onMouseUp={trackSelection}
             rows={20}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />

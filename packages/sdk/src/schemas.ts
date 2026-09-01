@@ -12,6 +12,7 @@ export const Scope = z.enum([
   "media:read", "media:write",
   "settings:read", "settings:write",
   "agents:manage", "users:manage", "audit:read",
+  "ai:use",
 ]);
 export type Scope = z.infer<typeof Scope>;
 
@@ -108,3 +109,46 @@ export type AuditEntry = z.infer<typeof AuditEntry>;
 
 export const User = z.object({ id: Id, email: z.string().email(), name: z.string(), role: z.enum(["admin", "editor"]), createdAt: ISODate });
 export type User = z.infer<typeof User>;
+
+// ---------- AI ----------
+export const AiProvider = z.enum(["anthropic", "openai", "google", "xai", "openai-compatible"]);
+export type AiProvider = z.infer<typeof AiProvider>;
+
+export const AiKeySource = z.enum(["byok", "platform", "none"]);
+export type AiKeySource = z.infer<typeof AiKeySource>;
+
+/** What `ai.config` returns. Never includes the key itself. */
+export const AiConfig = z.object({
+  provider: AiProvider,
+  model: z.string(),
+  baseUrl: z.string().nullable().describe("openai-compatible only (e.g. http://localhost:11434/v1)"),
+  systemPrompt: z.string().nullable().describe("appended to the built-in site context prompt"),
+  keySource: AiKeySource,
+  keyHint: z.string().nullable().describe("last 4 chars of the stored key, e.g. '…4f2a'"),
+});
+export type AiConfig = z.infer<typeof AiConfig>;
+
+export const AiConfigureInput = z.object({
+  provider: AiProvider.optional(),
+  model: z.string().min(1).optional(),
+  baseUrl: z.string().url().nullable().optional(),
+  systemPrompt: z.string().nullable().optional(),
+  apiKey: z.string().min(1).optional().describe("store a new site key (BYOK)"),
+  clearKey: z.boolean().optional().describe("remove the stored site key; falls back to platform key if any"),
+});
+export type AiConfigureInput = z.infer<typeof AiConfigureInput>;
+
+export const AiUsage = z.object({ inputTokens: z.number().int(), outputTokens: z.number().int() });
+export type AiUsage = z.infer<typeof AiUsage>;
+
+export const AiUsageEntry = z.object({
+  id: Id, ts: ISODate,
+  actorKind: Actor.shape.kind, actorId: z.string().nullable(), channel: Channel,
+  tool: z.string(), provider: AiProvider, model: z.string(),
+  inputTokens: z.number().int(), outputTokens: z.number().int(),
+  keySource: AiKeySource, durationMs: z.number().int(), ok: z.boolean(),
+});
+export type AiUsageEntry = z.infer<typeof AiUsageEntry>;
+
+export const AiTextResult = z.object({ text: z.string(), model: z.string(), usage: AiUsage });
+export type AiTextResult = z.infer<typeof AiTextResult>;

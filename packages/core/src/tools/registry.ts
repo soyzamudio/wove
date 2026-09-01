@@ -140,6 +140,11 @@ function redact(input: unknown): unknown {
   return out;
 }
 
+/** Write an audit row for work that bypasses `dispatch` (e.g. the SSE streaming endpoint). */
+export function auditCall(ctx: Ctx, tool: string, input: unknown, ok: boolean, error: string | null): void {
+  writeAudit(ctx, tool, input, ok, error);
+}
+
 export interface DispatchResult {
   ok: true;
   data: unknown;

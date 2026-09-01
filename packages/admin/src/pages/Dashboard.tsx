@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
@@ -6,6 +7,9 @@ import { ActorBadge, Card, ChannelBadge, ErrorBanner, Spinner, errorMessage } fr
 export function Dashboard() {
   const site = useToolQuery("site.info", {});
   const audit = useToolQuery("audit.list", { limit: 10 });
+  const since30d = useMemo(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), []);
+  const usage = useToolQuery("ai.usage", { limit: 1, since: since30d });
+  const showUsage = Boolean(usage.data);
 
   return (
     <div className="space-y-6">
@@ -14,7 +18,7 @@ export function Dashboard() {
       {site.isLoading && <Spinner />}
       {site.isError && <ErrorBanner message={errorMessage(site.error)} />}
       {site.data && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <Card>
             <div className="text-sm text-zinc-500 dark:text-zinc-400">Posts</div>
             <div className="text-3xl font-bold">{site.data.counts.posts}</div>
@@ -27,6 +31,14 @@ export function Dashboard() {
             <div className="text-sm text-zinc-500 dark:text-zinc-400">Media</div>
             <div className="text-3xl font-bold">{site.data.counts.media}</div>
           </Card>
+          {showUsage && usage.data && (
+            <Card>
+              <div className="text-sm text-zinc-500 dark:text-zinc-400">AI tokens (30d)</div>
+              <div className="text-3xl font-bold">
+                {(usage.data.totals.inputTokens + usage.data.totals.outputTokens).toLocaleString()}
+              </div>
+            </Card>
+          )}
         </div>
       )}
 

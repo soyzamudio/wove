@@ -134,8 +134,29 @@ export const auditLog = sqliteTable(
   (t) => ({ byTs: index("audit_ts_idx").on(t.ts), byTool: index("audit_tool_idx").on(t.tool) }),
 );
 
+export const aiUsage = sqliteTable(
+  "ai_usage",
+  {
+    id: text("id").primaryKey(),
+    ts: text("ts").notNull(),
+    actorKind: text("actor_kind", { enum: ["user", "agent", "anon"] }).notNull(),
+    actorId: text("actor_id"),
+    channel: text("channel", { enum: ["ui", "rest", "mcp", "system"] }).notNull(),
+    tool: text("tool").notNull(),
+    provider: text("provider", { enum: ["anthropic", "openai", "google", "xai", "openai-compatible"] }).notNull(),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    keySource: text("key_source", { enum: ["byok", "platform", "none"] }).notNull(),
+    durationMs: integer("duration_ms").notNull().default(0),
+    ok: integer("ok", { mode: "boolean" }).notNull(),
+  },
+  (t) => ({ byTs: index("ai_usage_ts_idx").on(t.ts), byTool: index("ai_usage_tool_idx").on(t.tool) }),
+);
+
 export type PostRow = typeof posts.$inferSelect;
 export type UserRow = typeof users.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type MediaRow = typeof media.$inferSelect;
 export type TermRow = typeof terms.$inferSelect;
+export type AiUsageRow = typeof aiUsage.$inferSelect;

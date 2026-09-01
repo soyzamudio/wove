@@ -29,6 +29,15 @@ export const ToolCatalog = {
   "agent.revoke": { input: z.object({ id: S.Id }), output: z.object({ ok: z.literal(true) }), scopes: ["agents:manage"] },
   // audit
   "audit.list":   { input: z.object({ limit: z.number().int().max(200).default(50), cursor: z.string().optional(), tool: z.string().optional() }), output: S.Page(S.AuditEntry), scopes: ["audit:read"] },
+  // ai
+  "ai.config":    { input: z.object({}), output: S.AiConfig, scopes: ["settings:read"] },
+  "ai.configure": { input: S.AiConfigureInput, output: S.AiConfig, scopes: ["settings:write"] },
+  "ai.models":    { input: z.object({ provider: S.AiProvider.optional() }), output: z.array(z.object({ id: z.string(), name: z.string().nullable() })), scopes: ["settings:read"] },
+  "ai.test":      { input: z.object({}), output: z.object({ ok: z.literal(true), provider: S.AiProvider, model: z.string(), keySource: S.AiKeySource, latencyMs: z.number().int() }), scopes: ["settings:read", "ai:use"] },
+  "ai.generate":  { input: z.object({ prompt: z.string().min(1), postId: S.Id.optional().describe("include this post as context"), maxTokens: z.number().int().min(64).max(64000).optional() }), output: S.AiTextResult, scopes: ["ai:use"] },
+  "ai.rewrite":   { input: z.object({ text: z.string().min(1), instruction: z.string().min(1) }), output: S.AiTextResult, scopes: ["ai:use"] },
+  "ai.draftPost": { input: z.object({ prompt: z.string().min(1), type: S.PostType.default("post"), terms: z.array(z.object({ taxonomy: z.string(), name: z.string() })).optional() }), output: S.Post, scopes: ["ai:use", "content:write"] },
+  "ai.usage":     { input: z.object({ limit: z.number().int().max(200).default(50), cursor: z.string().optional(), since: S.ISODate.optional() }), output: S.Page(S.AiUsageEntry).extend({ totals: z.object({ calls: z.number().int(), inputTokens: z.number().int(), outputTokens: z.number().int() }) }), scopes: ["audit:read"] },
   // site
   "site.info":    { input: z.object({}), output: z.object({ settings: S.Settings, counts: z.object({ posts: z.number(), pages: z.number(), media: z.number() }), version: z.string() }), scopes: ["settings:read"] },
 } as const satisfies Record<string, { input: z.ZodTypeAny; output: z.ZodTypeAny; scopes: readonly S.Scope[] }>;
@@ -57,4 +66,12 @@ export const ToolDescriptions: Record<ToolName, string> = {
   "agent.revoke": "Revoke an agent's key permanently.",
   "audit.list": "Read the audit log of every tool call (who, via which channel, what).",
   "site.info": "Site overview: settings, content counts, version.",
+  "ai.config": "Read the site AI configuration (provider, model, key source). Never returns the key.",
+  "ai.configure": "Set provider/model/baseUrl/systemPrompt and optionally store or clear the site API key (BYOK).",
+  "ai.models": "List models available from the configured (or given) provider using the resolved key.",
+  "ai.test": "Make a tiny request to verify the key + model work. Returns latency.",
+  "ai.generate": "Generate Markdown from a prompt, with site context (title, tagline, tags) and optional post context.",
+  "ai.rewrite": "Rewrite the given text according to an instruction. Returns only the rewritten text.",
+  "ai.draftPost": "Generate a complete post (title, excerpt, Markdown body) from a prompt and save it as a draft.",
+  "ai.usage": "AI token usage log with totals. Core records tokens only; pricing is applied by the hosting layer.",
 };

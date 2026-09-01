@@ -25,3 +25,6 @@ mechanism so cloud can create the first admin without a password round-trip.
 ## Not yet decided
 - Pricing (per-site vs per-org seats). Leaning: free tier 1 site, paid per site + agent-call overage.
 - Whether the Astro site renderer runs in the same machine as core (simplest; yes for phase 1).
+
+## AI billing (builds on core's `ai_usage`)
+Per site: **"use my key"** (BYOK — core already handles it; cloud bills nothing) or **"bill me"** — the control plane injects `AGENTPRESS_AI_<PROVIDER>_KEY` as env for the site's process, and periodically reads `ai_usage` rows where `keySource = platform`, prices them by (provider, model) from a cloud-owned price table with margin, and reports to Stripe metered billing. Per-site monthly token cap → core returns a budget-exceeded error when the cloud sets `AGENTPRESS_AI_BUDGET_TOKENS` (TODO in core). Price table never lives in core.
