@@ -37,6 +37,7 @@ export function CommandPalette({
       { label: "New post", hint: "Create", to: "/posts/new" },
       { label: "New page", hint: "Create", to: "/pages/new" },
       { label: "Design", hint: "Settings", to: "/settings/design" },
+      { label: "Email", hint: "Settings", to: "/settings/email" },
       { label: "Browse templates", hint: "Content", to: "/templates" },
       ...(extraCommands ?? []),
       ...nav,

@@ -8,17 +8,19 @@ import { EmailStatusCard } from "../components/EmailStatusCard";
 import { SettingsAi } from "./SettingsAi";
 import { SettingsDesign } from "./SettingsDesign";
 
-type SettingsTab = "site" | "design" | "ai";
+type SettingsTab = "site" | "design" | "email" | "ai";
 
 const TABS: { label: string; value: SettingsTab }[] = [
   { label: "Site", value: "site" },
   { label: "Design", value: "design" },
+  { label: "Email", value: "email" },
   { label: "AI", value: "ai" },
 ];
 
 const TAB_PATHS: Record<SettingsTab, string> = {
   site: "/settings",
   design: "/settings/design",
+  email: "/settings/email",
   ai: "/settings/ai",
 };
 
@@ -40,7 +42,7 @@ export function Settings() {
   // The tab lives in the URL so /settings/design is linkable from the palette.
   const { tab: tabParam } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
-  const tab: SettingsTab = tabParam === "design" || tabParam === "ai" ? tabParam : "site";
+  const tab: SettingsTab = tabParam === "design" || tabParam === "ai" || tabParam === "email" ? tabParam : "site";
   const settings = useToolQuery("settings.get", {});
   const invalidate = useInvalidateTool();
   const toast = useToast();
@@ -147,12 +149,12 @@ export function Settings() {
               </form>
             </Card>
           )}
-
-          <EmailStatusCard />
         </div>
       )}
 
       {tab === "design" && <SettingsDesign />}
+
+      {tab === "email" && <EmailStatusCard />}
 
       {tab === "ai" && <SettingsAi />}
     </div>
