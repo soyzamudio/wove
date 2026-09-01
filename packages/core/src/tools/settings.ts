@@ -4,6 +4,7 @@ import { media, posts } from "../db/schema";
 import { defineTool } from "./registry";
 import { readSettings, writeSettings } from "./shared";
 import { VERSION } from "../version";
+import { cachedUpdate, installHint } from "../updates";
 
 export const settingsGet = defineTool({
   name: "settings.get",
@@ -24,6 +25,13 @@ export const settingsUpdate = defineTool({
   handler: (ctx, input) => writeSettings(ctx.db, input as Record<string, unknown>),
 });
 
+/** The daily update check's cached result, shaped for `site.info`. Null when there is none. */
+function updateBanner(): { latest: string; url: string; installHint: string } | null {
+  const u = cachedUpdate();
+  if (!u) return null;
+  return { latest: u.latest, url: u.url, installHint: installHint() };
+}
+
 export const siteInfo = defineTool({
   name: "site.info",
   description: ToolDescriptions["site.info"],
@@ -42,6 +50,7 @@ export const siteInfo = defineTool({
         media: Number(ctx.db.select({ c: count() }).from(media).get()?.c ?? 0),
       },
       version: VERSION,
+      update: updateBanner(),
     };
   },
 });

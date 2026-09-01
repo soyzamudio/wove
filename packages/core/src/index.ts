@@ -23,6 +23,7 @@ export * from "./scheduler";
 export * from "./env";
 export * from "./ratelimit";
 export * from "./retention";
+export * from "./updates";
 export * from "./redirect-listener";
 export { createAdminServer } from "./static";
 export { proxyRequest, isReservedPath } from "./proxy";
@@ -88,6 +89,7 @@ if (import.meta.main) {
           ? `audit ${days.auditLog}d, ai_usage ${days.aiUsage}d, trash ${days.trash}d, imports ${days.imports}d`
           : "off"
       }`,
+      `  update  ${scheduler.updates ? "daily check on (updates.usewove.com — no data sent)" : "off (WOVE_UPDATE_CHECK=0)"}`,
       `  limits  ${rateLimitEnabled() ? "on (auth 10/min, ai per actor, anon tools 60/min)" : "off (WOVE_RATE_LIMIT=0)"}`,
       `  setup   ${setup ? "NEEDED — POST /api/auth/setup to create the first admin" : "complete"}`,
       ``,

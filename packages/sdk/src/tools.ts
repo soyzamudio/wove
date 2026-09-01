@@ -104,7 +104,7 @@ export const ToolCatalog = {
   "import.list":      { input: z.object({}), output: z.array(S.ImportJob), scopes: ["content:read"] },
   "export.site":      { input: z.object({}), output: S.SiteExport, scopes: ["content:read", "settings:read", "media:read"] },
   // site
-  "site.info":    { input: z.object({}), output: z.object({ settings: S.Settings, counts: z.object({ posts: z.number(), pages: z.number(), media: z.number() }), version: z.string() }), scopes: ["settings:read"] },
+  "site.info":    { input: z.object({}), output: z.object({ settings: S.Settings, counts: z.object({ posts: z.number(), pages: z.number(), media: z.number() }), version: z.string(), update: z.object({ latest: z.string(), url: z.string(), installHint: z.string().describe("the upgrade command for this install method") }).nullable().describe("newer release available, when the daily check is enabled and found one") }), scopes: ["settings:read"] },
 } as const satisfies Record<string, { input: z.ZodTypeAny; output: z.ZodTypeAny; scopes: readonly Sc.Scope[] }>;
 
 export type ToolName = keyof typeof ToolCatalog;

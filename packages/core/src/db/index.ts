@@ -4,6 +4,8 @@ import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as schema from "./schema";
+import { backupBeforeMigrate, isMainDbPath, recordRunVersion } from "./backup";
+import { VERSION } from "../version";
 
 export type DB = BunSQLiteDatabase<typeof schema>;
 export { schema };
@@ -30,10 +32,15 @@ export function closeDb(db: DB): void {
 
 export function openDb(path: string = defaultDbPath()): DB {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
+  // Only the install's real database is worth protecting; test harnesses open
+  // throwaway databases in temp dirs and must not litter them with backups.
+  const main = isMainDbPath(path);
+  if (main) backupBeforeMigrate(path, VERSION);
   const sqlite = new Database(path, { create: true });
   sqlite.exec("PRAGMA journal_mode = WAL;");
   sqlite.exec("PRAGMA foreign_keys = ON;");
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+  if (main) recordRunVersion(sqlite, VERSION);
   return db;
 }

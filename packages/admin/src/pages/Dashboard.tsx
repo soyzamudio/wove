@@ -11,6 +11,7 @@ import {
   Card,
   CardHeader,
   ChannelBadge,
+  Dot,
   ErrorBanner,
   Input,
   Label,
@@ -195,6 +196,7 @@ export function Dashboard() {
               {site.isError && <ErrorBanner message={errorMessage(site.error)} />}
               {site.data && (
                 <div>
+                  {site.data.update && <UpdateBanner update={site.data.update} />}
                   <StatRow label="Wove version" value={site.data.version} tone="green" />
                   <StatRow label="Posts" value={site.data.counts.posts} tone="neutral" />
                   <StatRow label="Pages" value={site.data.counts.pages} tone="neutral" />
@@ -253,6 +255,45 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Shown only when core's daily update check found a newer release. The install hint is
+ * whatever command upgrades *this* deployment, so it can be copied and pasted as-is.
+ */
+function UpdateBanner({ update }: { update: { latest: string; url: string; installHint: string } }) {
+  const toast = useToast();
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(update.installHint);
+      toast.success("Update command copied to clipboard");
+    } catch {
+      toast.error("Could not copy to clipboard");
+    }
+  };
+  return (
+    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+      <div className="flex items-center gap-2">
+        <Dot tone="amber" />
+        <a
+          href={update.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-amber-900 hover:underline dark:text-amber-200"
+        >
+          Wove {update.latest} available
+        </a>
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        title="Copy to clipboard"
+        className="mt-2 block w-full truncate rounded-md border border-amber-200 bg-white/70 px-2 py-1 text-left font-mono text-xs text-amber-900 hover:bg-white dark:border-amber-900/50 dark:bg-zinc-900/60 dark:text-amber-200 dark:hover:bg-zinc-900"
+      >
+        {update.installHint}
+      </button>
     </div>
   );
 }

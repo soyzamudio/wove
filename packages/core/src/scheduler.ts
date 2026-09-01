@@ -7,12 +7,16 @@ import { newId, nowIso } from "./ids";
 import { hydratePost } from "./tools/shared";
 import { logRetention, runRetention, type RetentionSummary } from "./retention";
 import { retentionDays, type Env } from "./env";
+import { refreshUpdateCache, updateCheckEnabled } from "./updates";
 
 /** How often the boot-time scheduler looks for due posts. */
 export const SCHEDULER_INTERVAL_MS = 30_000;
 
 /** How often retention runs. Also runs once at boot so a long-lived process is not required. */
 export const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/** How often we look for a newer Wove release. Also runs once at boot. */
+export const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The scheduler acts on its own behalf. `Actor.kind` has no "system" member (it is a
@@ -64,6 +68,8 @@ export interface SchedulerHandle {
   enabled: boolean;
   /** True when at least one retention budget is non-zero. */
   retention: boolean;
+  /** True when the daily update check is on (WOVE_UPDATE_CHECK !== "0"). */
+  updates: boolean;
 }
 
 /** Retention is on unless every budget is explicitly zeroed. */
@@ -88,7 +94,7 @@ export function schedulerEnabled(): boolean {
  * process alive on its own.
  */
 export function startScheduler(db: DB, hooks: Hooks = defaultHooks, env: Env = process.env): SchedulerHandle {
-  if (!schedulerEnabled()) return { stop: () => {}, enabled: false, retention: false };
+  if (!schedulerEnabled()) return { stop: () => {}, enabled: false, retention: false, updates: false };
   const tick = () => {
     void publishDue(db, hooks).catch((e) => console.error("[scheduler]", e));
   };
@@ -111,12 +117,23 @@ export function startScheduler(db: DB, hooks: Hooks = defaultHooks, env: Env = p
     retentionTimer.unref?.();
   }
 
+  // Fire-and-forget: the check never blocks boot and never fails loudly.
+  const updates = updateCheckEnabled(env);
+  let updateTimer: ReturnType<typeof setInterval> | undefined;
+  if (updates) {
+    refreshUpdateCache(undefined, env);
+    updateTimer = setInterval(() => refreshUpdateCache(undefined, env), UPDATE_CHECK_INTERVAL_MS);
+    updateTimer.unref?.();
+  }
+
   return {
     stop: () => {
       clearInterval(timer);
       if (retentionTimer) clearInterval(retentionTimer);
+      if (updateTimer) clearInterval(updateTimer);
     },
     enabled: true,
     retention,
+    updates,
   };
 }
