@@ -11,13 +11,13 @@ export { schema };
 export const MIGRATIONS_DIR = join(import.meta.dir, "..", "..", "drizzle");
 
 export function defaultDbPath(): string {
-  return process.env.AGENTPRESS_DB ?? join(process.cwd(), "data", "agentpress.db");
+  return process.env.WOVE_DB ?? join(process.cwd(), "data", "wove.db");
 }
 
 /**
  * Open (creating if needed) a SQLite database and run pending migrations.
  * TODO(postgres): swap for `drizzle-orm/node-postgres` behind the same `DB` type
- * when `AGENTPRESS_DATABASE_URL` starts with `postgres://`. Not implemented in v1.
+ * when `WOVE_DATABASE_URL` starts with `postgres://`. Not implemented in v1.
  */
 export function openDb(path: string = defaultDbPath()): DB {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });

@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { Block, BlockMeta, BlockProps, BlockType, BlocksDoc, ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { Block, BlockMeta, BlockProps, BlockType, BlocksDoc, ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { newId } from "../ids";
 import { defineTool } from "./registry";
 

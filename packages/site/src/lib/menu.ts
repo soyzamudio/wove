@@ -1,4 +1,4 @@
-import type { Menu, MenuItem } from "@agentpress/sdk";
+import type { Menu, MenuItem } from "@wove/sdk";
 
 /** Used when core has no menu configured for a location yet. */
 const FALLBACK_ITEMS: Record<string, MenuItem[]> = {

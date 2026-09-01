@@ -1,4 +1,4 @@
-import type { Block, BlocksDoc, ButtonSpec, ImageRef } from "@agentpress/sdk";
+import type { Block, BlocksDoc, ButtonSpec, ImageRef } from "@wove/sdk";
 
 function buttonsToMarkdown(buttons: ButtonSpec[]): string {
   if (!buttons.length) return "";

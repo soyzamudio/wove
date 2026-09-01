@@ -1,5 +1,5 @@
 import { and, count, desc, eq, gte, sql } from "drizzle-orm";
-import { ToolCatalog, ToolDescriptions, type Post } from "@agentpress/sdk";
+import { ToolCatalog, ToolDescriptions, type Post } from "@wove/sdk";
 import { aiUsage, posts } from "../db/schema";
 import { defineTool, notFound, ToolError, type Ctx } from "./registry";
 import { postCreate } from "./content";

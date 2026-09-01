@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { BlocksDoc } from "@agentpress/sdk";
+import type { BlocksDoc } from "@wove/sdk";
 import {
   builderReducer,
   canRedo,

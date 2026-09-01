@@ -1,4 +1,4 @@
-import type { Design, Menu, Post, Settings, Term } from "@agentpress/sdk";
+import type { Design, Menu, Post, Settings, Term } from "@wove/sdk";
 import { API_URL, MOCK } from "./env";
 import { cached } from "./cache";
 import { mockAllContent, mockDesign, mockMenus, mockSearch, mockSettings, mockTerms } from "./mock-data";
@@ -20,7 +20,7 @@ async function getJson<T>(path: string): Promise<T> {
   return cached(url, async () => {
     const res = await fetch(url);
     if (!res.ok) {
-      throw new Error(`agentpress core request failed: ${res.status} ${url}`);
+      throw new Error(`wove core request failed: ${res.status} ${url}`);
     }
     return (await res.json()) as T;
   });
@@ -52,7 +52,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     const res = await fetch(url);
     if (res.status === 404) return null;
     if (!res.ok) {
-      throw new Error(`agentpress core request failed: ${res.status} ${url}`);
+      throw new Error(`wove core request failed: ${res.status} ${url}`);
     }
     return (await res.json()) as Post;
   });

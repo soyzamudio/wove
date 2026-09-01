@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import type { ImportJob, ImportOptions } from "@agentpress/sdk";
+import type { ImportJob, ImportOptions } from "@wove/sdk";
 import { ArrowDownToLine, ChevronDown, Download, UploadCloud } from "lucide-react";
 import { exportSiteUrl, importWordpress, useToolQuery } from "../api";
 import { formatElapsed, summarizeWarnings } from "../lib/importReport";
@@ -81,7 +81,7 @@ function WarningsList({ warnings }: { warnings: ImportJob["warnings"] }) {
         {warnings.length} warning{warnings.length === 1 ? "" : "s"}
       </button>
       {open && (
-        <ul className="ap-scroll mt-2 max-h-64 space-y-1 overflow-y-auto text-xs text-zinc-600 dark:text-zinc-400">
+        <ul className="wv-scroll mt-2 max-h-64 space-y-1 overflow-y-auto text-xs text-zinc-600 dark:text-zinc-400">
           {grouped
             ? grouped.map((g) => (
                 <li key={g.message} className="flex items-start gap-2">

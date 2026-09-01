@@ -104,7 +104,7 @@ export const Media = z.object({
 export type Media = z.infer<typeof Media>;
 
 export const Settings = z.object({
-  siteTitle: z.string().default("My agentpress site"),
+  siteTitle: z.string().default("My Wove site"),
   tagline: z.string().default(""),
   siteUrl: z.string().url().default("http://localhost:4321"),
   theme: z.string().default("default"),
@@ -212,14 +212,14 @@ export const FontMeta: Record<z.infer<typeof FontChoice>, { google: string | nul
 /** Build the CSS custom properties the blocks renderer and site consume from a Design. */
 export function designToCssVars(d: Design): Record<string, string> {
   return {
-    "--ap-accent": d.colors.accent,
-    "--ap-bg": d.colors.background,
-    "--ap-fg": d.colors.foreground,
-    "--ap-dark-bg": d.colors.darkBackground,
-    "--ap-dark-fg": d.colors.darkForeground,
-    "--ap-font": FontMeta[d.fonts.body].stack,
-    "--ap-font-heading": FontMeta[d.fonts.heading].stack,
-    "--ap-radius": `${d.radius}px`,
+    "--wv-accent": d.colors.accent,
+    "--wv-bg": d.colors.background,
+    "--wv-fg": d.colors.foreground,
+    "--wv-dark-bg": d.colors.darkBackground,
+    "--wv-dark-fg": d.colors.darkForeground,
+    "--wv-font": FontMeta[d.fonts.body].stack,
+    "--wv-font-heading": FontMeta[d.fonts.heading].stack,
+    "--wv-radius": `${d.radius}px`,
   };
 }
 

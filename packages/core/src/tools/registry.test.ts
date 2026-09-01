@@ -1,6 +1,6 @@
 import { describe, expect, test, afterEach } from "bun:test";
 import { count } from "drizzle-orm";
-import { ToolCatalog } from "@agentpress/sdk";
+import { ToolCatalog } from "@wove/sdk";
 import { auditLog } from "../db/schema";
 import { ADMIN, ANON, EDITOR, makeHarness, unwrap } from "../test-helpers";
 

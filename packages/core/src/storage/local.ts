@@ -4,7 +4,7 @@ import type { StorageDriver } from "./types";
 
 /** Filesystem root for locally stored media. Read lazily so tests can retarget it. */
 export function mediaDir(): string {
-  return process.env.AGENTPRESS_MEDIA_DIR ?? join(process.cwd(), "data", "media");
+  return process.env.WOVE_MEDIA_DIR ?? join(process.cwd(), "data", "media");
 }
 
 /** Stores objects under `./data/media/<key>`, served by the `/media/*` route. */

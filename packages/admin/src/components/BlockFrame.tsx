@@ -2,8 +2,8 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
-import { BlockView } from "@agentpress/blocks";
-import { BlockMeta } from "@agentpress/sdk";
+import { BlockView } from "@wove/blocks";
+import { BlockMeta } from "@wove/sdk";
 import type { BuilderBlock } from "../lib/builderState";
 import { useToolMutation } from "../api";
 import { useToast } from "../context/ToastContext";
@@ -81,8 +81,8 @@ export function BlockFrame({
           selected ? "ring-2 ring-blue-600" : "ring-1 ring-transparent hover:ring-blue-400/70"
         )}
       >
-        <div className="ap-blocks pointer-events-none">
-          <section className={`ap-block ap-block--${block.type}`}>
+        <div className="wv-blocks pointer-events-none">
+          <section className={`wv-block wv-block--${block.type}`}>
             <BlockView block={block} />
           </section>
         </div>

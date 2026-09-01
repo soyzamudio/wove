@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
-import { BLOCK_TYPES, BlockMeta, newBlock } from "@agentpress/blocks";
-import type { BlockType } from "@agentpress/sdk";
+import { BLOCK_TYPES, BlockMeta, newBlock } from "@wove/blocks";
+import type { BlockType } from "@wove/sdk";
 import type { BuilderBlock } from "../lib/builderState";
 import { useToolMutation } from "../api";
 import { useToast } from "../context/ToastContext";
@@ -75,7 +75,7 @@ export function AddBlockPicker({
           <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Or pick a block
           </div>
-          <div className="ap-scroll grid max-h-[45vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
+          <div className="wv-scroll grid max-h-[45vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
             {BLOCK_TYPES.map((type) => (
               <button
                 key={type}

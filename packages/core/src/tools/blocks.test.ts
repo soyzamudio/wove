@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import type { BlocksDoc, Post } from "@agentpress/sdk";
+import type { BlocksDoc, Post } from "@wove/sdk";
 import { posts } from "../db/schema";
 import { ADMIN, makeHarness, unwrap } from "../test-helpers";
 

@@ -6,6 +6,6 @@ export { resolveIcon, Icon } from "./icon";
 export { imgAttrs, SIZES } from "./image-attrs";
 export { BLOCK_TYPES, blockDefaults, newBlock, newId } from "./defaults";
 export { sampleDoc } from "./fixtures";
-export { BlockMeta } from "@agentpress/sdk";
-export type { BlocksDoc, BlockType, BlockOf } from "@agentpress/sdk";
+export { BlockMeta } from "@wove/sdk";
+export type { BlocksDoc, BlockType, BlockOf } from "@wove/sdk";
 export type { AnyBlock, AnyBlock as Block, PropsOf } from "./types";

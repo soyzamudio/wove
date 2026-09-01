@@ -1,4 +1,4 @@
-import { ToolCatalog } from "@agentpress/sdk";
+import { ToolCatalog } from "@wove/sdk";
 import { registry, type Registry, type Tool } from "./registry";
 import { contentTools } from "./content";
 import { taxonomyTools } from "./taxonomy";

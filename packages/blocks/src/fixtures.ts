@@ -1,4 +1,4 @@
-import type { BlocksDoc } from "@agentpress/sdk";
+import type { BlocksDoc } from "@wove/sdk";
 import type { AnyBlock } from "./types";
 import { BLOCK_TYPES, blockDefaults } from "./defaults";
 
@@ -11,7 +11,7 @@ export function sampleDoc(): BlocksDoc {
 
   for (const block of blocks) {
     if (block.type === "hero") {
-      block.props.eyebrow = "AgentPress";
+      block.props.eyebrow = "Wove";
       block.props.headline = "A CMS your agents can actually use";
       block.props.subheadline =
         "Typed content, a real API, and static pages that ship no JavaScript. Write it yourself or let an agent do it.";

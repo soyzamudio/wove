@@ -1,6 +1,6 @@
 import { asc, eq, isNull } from "drizzle-orm";
-import type { Scope } from "@agentpress/sdk";
-import { ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import type { Scope } from "@wove/sdk";
+import { ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { agents } from "../db/schema";
 import { newApiKey, newId, nowIso, sha256 } from "../ids";
 import { defineTool, notFound, ToolError } from "./registry";

@@ -3,7 +3,7 @@
  * dnd-kit sorts naturally — and converts to/from the nested `MenuItem[]` the
  * `menu.set` tool expects. One nesting level only.
  */
-import type { MenuItem } from "@agentpress/sdk";
+import type { MenuItem } from "@wove/sdk";
 
 export interface FlatMenuItem {
   id: string;

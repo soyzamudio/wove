@@ -1,4 +1,4 @@
-import type { AiProvider } from "@agentpress/sdk";
+import type { AiProvider } from "@wove/sdk";
 import { badRequest } from "../tools/registry";
 import { envVarFor } from "./keys";
 

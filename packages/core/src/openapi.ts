@@ -84,15 +84,15 @@ export function buildOpenApi(reg: Registry, baseUrl = "http://localhost:4000") {
   return {
     openapi: "3.1.0",
     info: {
-      title: "agentpress core",
+      title: "wove core",
       version: VERSION,
       description: "Every admin action is a typed tool, exposed identically over REST and MCP.",
     },
     servers: [{ url: baseUrl }],
     components: {
       securitySchemes: {
-        agentKey: { type: "http", scheme: "bearer", description: "Agent API key (`ap_...`)" },
-        session: { type: "apiKey", in: "cookie", name: "ap_session" },
+        agentKey: { type: "http", scheme: "bearer", description: "Agent API key (`wove_...`)" },
+        session: { type: "apiKey", in: "cookie", name: "wove_session" },
       },
       schemas: { Error: ERROR_SCHEMA },
     },

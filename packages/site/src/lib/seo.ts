@@ -1,4 +1,4 @@
-import type { ImageRef, Post } from "@agentpress/sdk";
+import type { ImageRef, Post } from "@wove/sdk";
 
 export interface ResolvedSeo {
   title: string;

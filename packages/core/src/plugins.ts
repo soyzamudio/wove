@@ -24,7 +24,7 @@ export function registerPlugin(p: Plugin, reg: Registry = defaultRegistry, hooks
 }
 
 export function pluginsDir(): string {
-  return process.env.AGENTPRESS_PLUGINS_DIR ?? join(process.cwd(), "plugins");
+  return process.env.WOVE_PLUGINS_DIR ?? join(process.cwd(), "plugins");
 }
 
 /** Loads every `plugins/*.ts` module and registers its default (or named `plugin`) export. */

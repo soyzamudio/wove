@@ -96,7 +96,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             className="w-full bg-transparent py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-100"
           />
         </div>
-        <ul className="ap-scroll max-h-80 overflow-y-auto p-1.5">
+        <ul className="wv-scroll max-h-80 overflow-y-auto p-1.5">
           {results.map((cmd, i) => (
             <li key={cmd.to + cmd.label}>
               <button

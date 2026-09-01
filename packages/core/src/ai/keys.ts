@@ -2,8 +2,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
-import type { AiConfig, AiKeySource, AiProvider } from "@agentpress/sdk";
-import { AiProvider as AiProviderSchema } from "@agentpress/sdk";
+import type { AiConfig, AiKeySource, AiProvider } from "@wove/sdk";
+import { AiProvider as AiProviderSchema } from "@wove/sdk";
 import type { DB } from "../db";
 import { settings as settingsTable } from "../db/schema";
 import { nowIso } from "../ids";
@@ -43,17 +43,17 @@ const asString = (v: unknown): string | null => (typeof v === "string" && v.leng
 let cachedSecret: Buffer | null = null;
 
 export function secretPath(): string {
-  return process.env.AGENTPRESS_SECRET_FILE ?? join(process.cwd(), "data", "secret");
+  return process.env.WOVE_SECRET_FILE ?? join(process.cwd(), "data", "secret");
 }
 
 /**
- * The 32-byte AES key, derived (sha256) from `AGENTPRESS_SECRET`. When that env var is
+ * The 32-byte AES key, derived (sha256) from `WOVE_SECRET`. When that env var is
  * unset we generate a secret once and persist it to ./data/secret (0600) so stored keys
  * survive a restart.
  */
 export function encryptionKey(): Buffer {
   if (cachedSecret) return cachedSecret;
-  let secret = process.env.AGENTPRESS_SECRET;
+  let secret = process.env.WOVE_SECRET;
   if (!secret) {
     const path = secretPath();
     if (existsSync(path)) {
@@ -62,14 +62,14 @@ export function encryptionKey(): Buffer {
       secret = randomBytes(32).toString("hex");
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, secret, { mode: 0o600 });
-      console.warn(`[ai] AGENTPRESS_SECRET is not set — generated one at ${path}. Back it up: losing it invalidates stored API keys.`);
+      console.warn(`[ai] WOVE_SECRET is not set — generated one at ${path}. Back it up: losing it invalidates stored API keys.`);
     }
   }
   cachedSecret = createHash("sha256").update(secret).digest();
   return cachedSecret;
 }
 
-/** Test seam: forget the memoised key (e.g. after changing AGENTPRESS_SECRET). */
+/** Test seam: forget the memoised key (e.g. after changing WOVE_SECRET). */
 export function resetEncryptionKey(): void {
   cachedSecret = null;
 }
@@ -144,9 +144,9 @@ export function readSiteKey(db: DB): string | null {
   return blob ? decryptSecret(blob) : null;
 }
 
-/** `AGENTPRESS_AI_ANTHROPIC_KEY`, `AGENTPRESS_AI_OPENAI_COMPATIBLE_KEY`, … */
+/** `WOVE_AI_ANTHROPIC_KEY`, `WOVE_AI_OPENAI_COMPATIBLE_KEY`, … */
 export function envVarFor(provider: AiProvider): string {
-  return `AGENTPRESS_AI_${provider.toUpperCase().replace(/-/g, "_")}_KEY`;
+  return `WOVE_AI_${provider.toUpperCase().replace(/-/g, "_")}_KEY`;
 }
 
 export interface ResolvedKey {

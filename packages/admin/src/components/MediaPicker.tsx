@@ -1,5 +1,5 @@
 import { Image as ImageIcon } from "lucide-react";
-import type { Media } from "@agentpress/sdk";
+import type { Media } from "@wove/sdk";
 import { useToolQuery } from "../api";
 import { EmptyState, ErrorBanner, Modal, Spinner, errorMessage } from "./ui";
 
@@ -23,7 +23,7 @@ export function MediaPicker({
         <EmptyState icon={<ImageIcon className="h-5 w-5" />} title="No media yet" description="Upload images from the Media page first." />
       )}
       {list.data && list.data.items.length > 0 && (
-        <div className="ap-scroll grid max-h-[55vh] grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4">
+        <div className="wv-scroll grid max-h-[55vh] grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4">
           {list.data.items.map((item) => (
             <button
               key={item.id}

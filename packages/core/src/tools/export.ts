@@ -1,5 +1,5 @@
 import { desc, eq, ne, sql } from "drizzle-orm";
-import { SiteExport, ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { SiteExport, ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import type { DB } from "../db";
 import { media, postTerms, posts, terms as termsTable } from "../db/schema";
 import { nowIso } from "../ids";

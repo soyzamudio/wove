@@ -11,7 +11,7 @@
  * what happened, and N audit rows per import would drown the log.
  */
 import { sql } from "drizzle-orm";
-import type { BlocksDoc, ImageRef, ImportJob, ImportOptions, Media, MenuItem, Post } from "@agentpress/sdk";
+import type { BlocksDoc, ImageRef, ImportJob, ImportOptions, Media, MenuItem, Post } from "@wove/sdk";
 import { posts } from "../../db/schema";
 import { newId, nowIso, slugify } from "../../ids";
 import { maxUploadBytes, storeMedia } from "../../tools/media";

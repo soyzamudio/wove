@@ -1,4 +1,4 @@
-import type { Block as SdkBlock, BlocksDoc } from "@agentpress/sdk";
+import type { Block as SdkBlock, BlocksDoc } from "@wove/sdk";
 import type { AnyBlock } from "./types";
 import type { RenderContext } from "./context";
 import { Hero } from "./blocks/hero";
@@ -50,9 +50,9 @@ export function BlockView({ block: input, ctx = {} }: { block: SdkBlock | AnyBlo
 /** Render a whole blocks document, each block wrapped in its own <section>. */
 export function BlockRenderer({ doc, ctx = {} }: { doc: BlocksDoc; ctx?: RenderContext }) {
   return (
-    <div className="ap-blocks">
+    <div className="wv-blocks">
       {doc.blocks.map((block) => (
-        <section key={block.id} className={`ap-block ap-block--${block.type}`} data-block-id={block.id}>
+        <section key={block.id} className={`wv-block wv-block--${block.type}`} data-block-id={block.id}>
           <BlockView block={block} ctx={ctx} />
         </section>
       ))}

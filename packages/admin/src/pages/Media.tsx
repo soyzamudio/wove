@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Copy, Image as ImageIcon, Trash2, Upload } from "lucide-react";
-import type { Media as MediaItem } from "@agentpress/sdk";
+import type { Media as MediaItem } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
 import { Badge, Button, Card, EmptyState, ErrorBanner, Modal, PageHeader, Spinner, errorMessage } from "../components/ui";

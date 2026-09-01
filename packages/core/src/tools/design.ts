@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { Design, ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { Design, ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import type { DB } from "../db";
 import { settings as settingsTable } from "../db/schema";
 import { nowIso } from "../ids";

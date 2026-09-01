@@ -1,4 +1,4 @@
-import type { AiProvider } from "@agentpress/sdk";
+import type { AiProvider } from "@wove/sdk";
 
 /**
  * Default model per provider, pre-filled when the provider is chosen/changed and no

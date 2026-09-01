@@ -1,5 +1,5 @@
 {
-  "name": "@agentpress/blocks",
+  "name": "@wove/blocks",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -14,7 +14,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@agentpress/sdk": "workspace:*",
+    "@wove/sdk": "workspace:*",
     "lucide-react": "^1.39.0",
     "marked": "^13.0.3"
   },

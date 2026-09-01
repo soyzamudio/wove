@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Post, Settings } from "@agentpress/sdk";
+import type { Post, Settings } from "@wove/sdk";
 import { buildRssFeed, xmlEscape } from "./rss";
 
 describe("xmlEscape", () => {

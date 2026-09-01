@@ -1,5 +1,5 @@
 {
-  "name": "@agentpress/core",
+  "name": "@wove/core",
   "version": "0.0.1",
   "type": "module",
   "main": "./src/index.ts",
@@ -12,7 +12,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@agentpress/sdk": "workspace:*",
+    "@wove/sdk": "workspace:*",
     "@anthropic-ai/sdk": "^0.122.0",
     "@google/genai": "^2.20.0",
     "@modelcontextprotocol/sdk": "^1.12.0",

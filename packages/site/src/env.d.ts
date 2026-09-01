@@ -2,7 +2,7 @@
 /// <reference types="astro/client" />
 
 interface ImportMetaEnv {
-  readonly AGENTPRESS_API_URL?: string;
+  readonly WOVE_API_URL?: string;
   readonly MOCK?: string;
 }
 

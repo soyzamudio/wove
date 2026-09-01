@@ -1,5 +1,5 @@
-import type { Post } from "@agentpress/sdk";
-import type { Actor, Channel, Media } from "@agentpress/sdk";
+import type { Post } from "@wove/sdk";
+import type { Actor, Channel, Media } from "@wove/sdk";
 
 export interface HookContext {
   actor: Actor;

@@ -23,9 +23,9 @@ const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60"><rect 
 const exists = (dir: string, key: string) => Bun.file(join(dir, "media", key)).exists();
 
 afterEach(() => {
-  // Only the knobs these tests set; the harness owns AGENTPRESS_MEDIA_DIR.
-  delete process.env.AGENTPRESS_MAX_UPLOAD_MB;
-  delete process.env.AGENTPRESS_STORAGE;
+  // Only the knobs these tests set; the harness owns WOVE_MEDIA_DIR.
+  delete process.env.WOVE_MAX_UPLOAD_MB;
+  delete process.env.WOVE_STORAGE;
   resetStorage();
 });
 
@@ -147,7 +147,7 @@ describe("media.upload", () => {
 
   test("rejects payloads over the upload cap", async () => {
     const h = makeHarness();
-    process.env.AGENTPRESS_MAX_UPLOAD_MB = "1";
+    process.env.WOVE_MAX_UPLOAD_MB = "1";
     try {
       const res = await h.call(ADMIN, "media.upload", {
         filename: "huge.bin", mime: "application/octet-stream", base64: "A".repeat(3_000_000),
@@ -206,7 +206,7 @@ describe("storage drivers", () => {
 
   test("the s3 driver builds virtual-hosted urls by default", () => {
     const cfg = s3ConfigFromEnv({
-      AGENTPRESS_STORAGE: "s3", AGENTPRESS_S3_BUCKET: "my-bucket", AGENTPRESS_S3_REGION: "eu-west-1",
+      WOVE_STORAGE: "s3", WOVE_S3_BUCKET: "my-bucket", WOVE_S3_REGION: "eu-west-1",
     });
     expect(cfg.bucket).toBe("my-bucket");
     const d = createS3Driver(cfg);
@@ -214,12 +214,12 @@ describe("storage drivers", () => {
     expect(d.publicUrl("abc-photo.png")).toBe("https://my-bucket.s3.eu-west-1.amazonaws.com/abc-photo.png");
   });
 
-  test("AGENTPRESS_S3_PUBLIC_URL overrides the base and trailing slashes are trimmed", () => {
+  test("WOVE_S3_PUBLIC_URL overrides the base and trailing slashes are trimmed", () => {
     const cfg = s3ConfigFromEnv({
-      AGENTPRESS_S3_BUCKET: "b", AGENTPRESS_S3_REGION: "us-east-2",
-      AGENTPRESS_S3_PUBLIC_URL: "https://cdn.example.com/assets/",
-      AGENTPRESS_S3_ENDPOINT: "https://acct.r2.cloudflarestorage.com",
-      AGENTPRESS_S3_ACCESS_KEY_ID: "k", AGENTPRESS_S3_SECRET_ACCESS_KEY: "s",
+      WOVE_S3_BUCKET: "b", WOVE_S3_REGION: "us-east-2",
+      WOVE_S3_PUBLIC_URL: "https://cdn.example.com/assets/",
+      WOVE_S3_ENDPOINT: "https://acct.r2.cloudflarestorage.com",
+      WOVE_S3_ACCESS_KEY_ID: "k", WOVE_S3_SECRET_ACCESS_KEY: "s",
     });
     expect(cfg.endpoint).toBe("https://acct.r2.cloudflarestorage.com");
     expect(s3PublicUrl(cfg, "id-a b.png")).toBe("https://cdn.example.com/assets/id-a%20b.png");
@@ -228,6 +228,6 @@ describe("storage drivers", () => {
   });
 
   test("s3 config demands a bucket", () => {
-    expect(() => s3ConfigFromEnv({ AGENTPRESS_STORAGE: "s3" })).toThrow(StorageConfigError);
+    expect(() => s3ConfigFromEnv({ WOVE_STORAGE: "s3" })).toThrow(StorageConfigError);
   });
 });

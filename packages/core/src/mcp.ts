@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { Actor } from "@agentpress/sdk";
+import type { Actor } from "@wove/sdk";
 import type { DB } from "./db";
 import type { Hooks } from "./hooks";
 import { dispatch, type Registry } from "./tools/registry";
@@ -18,14 +18,14 @@ export interface McpDeps {
 /**
  * Streamable HTTP MCP endpoint. A fresh Server + transport is built per request
  * (stateless mode) so each call carries the Actor resolved from that request's
- * `Authorization: Bearer ap_...` header. Channel is always `mcp`.
+ * `Authorization: Bearer wove_...` header. Channel is always `mcp`.
  */
 export function createMcpHandler(deps: McpDeps) {
   return async function handleMcp(req: Request): Promise<Response> {
     const actor = deps.resolve(req);
 
     const server = new Server(
-      { name: "agentpress", version: VERSION },
+      { name: "wove", version: VERSION },
       { capabilities: { tools: {} } },
     );
 

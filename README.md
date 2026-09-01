@@ -1,8 +1,8 @@
-# agentpress
+# Wove
 
-**The CMS for the agentic era.** Open source (Apache-2.0), with a hosted cloud edition.
+**The CMS for the agentic era.** · https://usewove.com — https://usewove.com Open source (Apache-2.0), with a hosted cloud edition.
 
-WordPress made publishing a human-click-through experience. agentpress makes every
+WordPress made publishing a human-click-through experience. Wove makes every
 admin action a typed, permissioned, auditable **tool** — usable by humans through the
 admin UI *and* by AI agents through MCP and REST, on equal footing.
 
@@ -16,7 +16,7 @@ admin UI *and* by AI agents through MCP and REST, on equal footing.
 | path | what |
 |---|---|
 | `packages/core` | API server, DB schema, auth, hooks, MCP server |
-| `packages/sdk` | shared types + typed client (`@agentpress/sdk`) |
+| `packages/sdk` | shared types + typed client (`@wove/sdk`) |
 | `packages/admin` | React admin UI |
 | `packages/site` | Astro public-site renderer + default theme |
 | `apps/cloud` | hosted multi-tenant control plane (design only for now) |
@@ -38,7 +38,7 @@ See `docs/ARCHITECTURE.md`.
 `packages/site` renders posts and pages server-side with zero client JS by
 default. A post/page with `format: "markdown"` renders through the existing
 Markdown pipeline; one with `format: "blocks"` is rendered by
-`@agentpress/blocks`'s `<BlockRenderer>` (a server-only React island — no
+`@wove/blocks`'s `<BlockRenderer>` (a server-only React island — no
 `client:*` directive, so no hydration script ships). If a published page with
 slug `home` exists, it renders at `/` (blocks or markdown, whichever its
 format is); the paginated post listing that used to live at `/` moved to

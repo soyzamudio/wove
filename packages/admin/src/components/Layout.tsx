@@ -68,7 +68,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
-      <aside className="ap-scroll sticky top-0 flex h-screen w-[260px] shrink-0 flex-col overflow-y-auto bg-zinc-950 text-zinc-300">
+      <aside className="wv-scroll sticky top-0 flex h-screen w-[260px] shrink-0 flex-col overflow-y-auto bg-zinc-950 text-zinc-300">
         <div className="flex items-center justify-between px-4 pb-3 pt-4">
           <span className="text-white">
             <Logo />

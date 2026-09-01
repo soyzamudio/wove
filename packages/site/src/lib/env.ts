@@ -4,8 +4,8 @@
 // node-adapter server all populate process.env from the shell).
 
 export const API_URL: string =
-  (import.meta.env.AGENTPRESS_API_URL as string | undefined) ??
-  process.env.AGENTPRESS_API_URL ??
+  (import.meta.env.WOVE_API_URL as string | undefined) ??
+  process.env.WOVE_API_URL ??
   "http://localhost:4000";
 
 // MOCK is a runtime (not build-time) switch: read it straight from process.env

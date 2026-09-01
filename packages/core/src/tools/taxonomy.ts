@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { postTerms, terms as termsTable } from "../db/schema";
 import { defineTool } from "./registry";
 

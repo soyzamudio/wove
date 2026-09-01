@@ -1,9 +1,9 @@
 import { describe, expect, test, mock } from "bun:test";
-import { createClient } from "@agentpress/sdk";
+import { createClient } from "@wove/sdk";
 import { channelFetch, parseSseBuffer, streamAi } from "./api";
 
 describe("channelFetch", () => {
-  test("adds x-ap-channel: ui header while preserving other headers", async () => {
+  test("adds x-wove-channel: ui header while preserving other headers", async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -22,7 +22,7 @@ describe("channelFetch", () => {
 
     expect(calls).toHaveLength(1);
     const headers = new Headers(calls[0].init?.headers);
-    expect(headers.get("x-ap-channel")).toBe("ui");
+    expect(headers.get("x-wove-channel")).toBe("ui");
     expect(headers.get("content-type")).toBe("application/json");
   });
 });
@@ -49,7 +49,7 @@ describe("sdk client wired through channelFetch", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].init?.credentials).toBe("include");
     const headers = new Headers(calls[0].init?.headers);
-    expect(headers.get("x-ap-channel")).toBe("ui");
+    expect(headers.get("x-wove-channel")).toBe("ui");
     expect(String(calls[0].input)).toBe("http://localhost:4000/api/tools/site.info");
   });
 });

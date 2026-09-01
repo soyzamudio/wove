@@ -1,4 +1,4 @@
-import type { BlockProps, BlockType } from "@agentpress/sdk";
+import type { BlockProps, BlockType } from "@wove/sdk";
 import type { z } from "zod";
 
 /** Props for one block type. */

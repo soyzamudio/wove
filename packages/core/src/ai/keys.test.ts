@@ -6,14 +6,14 @@ import {
 } from "./keys";
 
 const h = makeHarness();
-process.env.AGENTPRESS_SECRET = "test-secret-for-ai-keys";
+process.env.WOVE_SECRET = "test-secret-for-ai-keys";
 resetEncryptionKey();
 
 afterAll(() => h.cleanup());
 
 beforeEach(() => {
   clearSiteKey(h.db);
-  delete process.env.AGENTPRESS_AI_ANTHROPIC_KEY;
+  delete process.env.WOVE_AI_ANTHROPIC_KEY;
 });
 
 describe("ai key storage", () => {
@@ -36,14 +36,14 @@ describe("ai key storage", () => {
   });
 
   test("env var names", () => {
-    expect(envVarFor("anthropic")).toBe("AGENTPRESS_AI_ANTHROPIC_KEY");
-    expect(envVarFor("openai-compatible")).toBe("AGENTPRESS_AI_OPENAI_COMPATIBLE_KEY");
+    expect(envVarFor("anthropic")).toBe("WOVE_AI_ANTHROPIC_KEY");
+    expect(envVarFor("openai-compatible")).toBe("WOVE_AI_OPENAI_COMPATIBLE_KEY");
   });
 
   test("resolution order: byok > platform > none", () => {
     expect(resolveKey(h.db, "anthropic")).toEqual({ key: null, source: "none" });
 
-    process.env.AGENTPRESS_AI_ANTHROPIC_KEY = "env-key";
+    process.env.WOVE_AI_ANTHROPIC_KEY = "env-key";
     expect(resolveKey(h.db, "anthropic")).toEqual({ key: "env-key", source: "platform" });
 
     storeSiteKey(h.db, "site-key-abcd");
@@ -52,7 +52,7 @@ describe("ai key storage", () => {
 
   test("keyHint masks all but the last 4 chars, and is null for platform/none", () => {
     expect(keyHint(h.db)).toBe(null);
-    process.env.AGENTPRESS_AI_ANTHROPIC_KEY = "env-key";
+    process.env.WOVE_AI_ANTHROPIC_KEY = "env-key";
     expect(keyHint(h.db)).toBe(null);
     storeSiteKey(h.db, "sk-ant-xyz-4f2a");
     expect(keyHint(h.db)).toBe("…4f2a");

@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { media } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import { processImage } from "../images";
@@ -12,7 +12,7 @@ export { mediaDir } from "../storage";
 const DEFAULT_MAX_UPLOAD_MB = 25;
 
 export function maxUploadBytes(): number {
-  const mb = Number(process.env.AGENTPRESS_MAX_UPLOAD_MB ?? DEFAULT_MAX_UPLOAD_MB);
+  const mb = Number(process.env.WOVE_MAX_UPLOAD_MB ?? DEFAULT_MAX_UPLOAD_MB);
   return (Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_MAX_UPLOAD_MB) * 1024 * 1024;
 }
 

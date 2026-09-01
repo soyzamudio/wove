@@ -9,7 +9,7 @@ export {
 } from "./s3";
 
 export function createStorage(env: Record<string, string | undefined> = process.env): StorageDriver {
-  return env.AGENTPRESS_STORAGE === "s3" ? createS3Driver(s3ConfigFromEnv(env)) : createLocalDriver();
+  return env.WOVE_STORAGE === "s3" ? createS3Driver(s3ConfigFromEnv(env)) : createLocalDriver();
 }
 
 let cached: StorageDriver | undefined;

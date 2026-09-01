@@ -1,4 +1,4 @@
-import type { ImageRef } from "@agentpress/sdk";
+import type { ImageRef } from "@wove/sdk";
 import { resolveUrl, type RenderContext } from "./context";
 
 /**

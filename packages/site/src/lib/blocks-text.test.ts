@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { BlocksDoc } from "@agentpress/sdk";
+import type { BlocksDoc } from "@wove/sdk";
 import { blocksToMarkdown } from "./blocks-text";
 
 describe("blocksToMarkdown", () => {
@@ -11,7 +11,7 @@ describe("blocksToMarkdown", () => {
           id: "1",
           type: "hero",
           props: {
-            eyebrow: "AgentPress",
+            eyebrow: "Wove",
             headline: "A CMS your agents can actually use",
             subheadline: "Typed content, a real API.",
             buttons: [{ label: "Get started", href: "/start", variant: "primary" }],
@@ -22,7 +22,7 @@ describe("blocksToMarkdown", () => {
     };
     const out = blocksToMarkdown(doc);
     expect(out).toContain("# A CMS your agents can actually use");
-    expect(out).toContain("AgentPress");
+    expect(out).toContain("Wove");
     expect(out).toContain("Typed content, a real API.");
     expect(out).toContain("[Get started](/start)");
   });

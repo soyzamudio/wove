@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { auditLog } from "../db/schema";
 import { defineTool } from "./registry";
 import { decodeCursor, encodeCursor } from "./shared";

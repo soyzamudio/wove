@@ -1,4 +1,4 @@
-import type { BlockType } from "@agentpress/sdk";
+import type { BlockType } from "@wove/sdk";
 
 /**
  * Tiny abstract wireframe of what a block looks like. Pure CSS shapes — no

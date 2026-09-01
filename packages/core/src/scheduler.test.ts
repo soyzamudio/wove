@@ -40,17 +40,17 @@ describe("scheduler", () => {
     expect(await publishDue(h.db, h.hooks)).toEqual([]);
   });
 
-  test("AGENTPRESS_SCHEDULER=0 disables the timer", () => {
-    const prev = process.env.AGENTPRESS_SCHEDULER;
-    process.env.AGENTPRESS_SCHEDULER = "0";
+  test("WOVE_SCHEDULER=0 disables the timer", () => {
+    const prev = process.env.WOVE_SCHEDULER;
+    process.env.WOVE_SCHEDULER = "0";
     const off = startScheduler(h.db, h.hooks);
     expect(off.enabled).toBe(false);
     off.stop();
 
-    delete process.env.AGENTPRESS_SCHEDULER;
+    delete process.env.WOVE_SCHEDULER;
     const on = startScheduler(h.db, h.hooks);
     expect(on.enabled).toBe(true);
     on.stop();
-    if (prev !== undefined) process.env.AGENTPRESS_SCHEDULER = prev;
+    if (prev !== undefined) process.env.WOVE_SCHEDULER = prev;
   });
 });

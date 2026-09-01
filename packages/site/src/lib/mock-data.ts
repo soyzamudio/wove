@@ -1,10 +1,10 @@
-import type { Design, Menu, Post, Settings, Term } from "@agentpress/sdk";
-import { sampleDoc } from "@agentpress/blocks";
+import type { Design, Menu, Post, Settings, Term } from "@wove/sdk";
+import { sampleDoc } from "@wove/blocks";
 
 const now = "2026-01-01T00:00:00.000Z";
 
 export const mockSettings: Settings = {
-  siteTitle: "agentpress Demo",
+  siteTitle: "wove Demo",
   tagline: "The CMS for the agentic era.",
   siteUrl: "http://localhost:4321",
   theme: "default",
@@ -57,11 +57,11 @@ export const mockPosts: Post[] = [
     slug: "hello-world",
     title: "Hello, World",
     content:
-      "# Hello, World\n\nThis is the first post published on this agentpress site. " +
+      "# Hello, World\n\nThis is the first post published on this wove site. " +
       "It includes a relative image reference to make sure media links resolve correctly:\n\n" +
       "![A placeholder graphic](/media/hello.jpg)\n\n" +
       "Agents and humans publish through the same typed tools.",
-    excerpt: "An introductory post welcoming you to agentpress.",
+    excerpt: "An introductory post welcoming you to wove.",
     featuredImage: {
       url: "/media/hello-featured.jpg",
       alt: "A placeholder hero graphic",
@@ -122,8 +122,8 @@ export const mockPages: Post[] = [
     type: "page",
     slug: "about",
     title: "About",
-    content: "# About\n\nagentpress is an open-source, agent-native CMS.",
-    excerpt: "What agentpress is and who it's for.",
+    content: "# About\n\nwove is an open-source, agent-native CMS.",
+    excerpt: "What wove is and who it's for.",
     featuredImage: null,
     seo: { title: null, description: null, ogImage: null, noindex: false },
     status: "published",

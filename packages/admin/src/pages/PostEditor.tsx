@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { marked } from "marked";
 import { ExternalLink, History, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
-import type { ImageRef, Post } from "@agentpress/sdk";
+import type { ImageRef, Post } from "@wove/sdk";
 import { streamAi, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { slugify } from "../lib/slug";
 import { relativeTime } from "../lib/time";
@@ -690,7 +690,7 @@ export function PostEditor({ postType }: { postType: "post" | "page" }) {
             )}
             {view !== "edit" && (
               <Card className="min-h-[16rem] overflow-x-auto px-5 py-4">
-                <div className="ap-prose text-zinc-800 dark:text-zinc-200" dangerouslySetInnerHTML={{ __html: html }} />
+                <div className="wv-prose text-zinc-800 dark:text-zinc-200" dangerouslySetInnerHTML={{ __html: html }} />
               </Card>
             )}
           </div>

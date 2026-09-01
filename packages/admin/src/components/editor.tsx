@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Image as ImageIcon, RotateCcw, Trash2, X } from "lucide-react";
-import type { ImageRef, Media, Post } from "@agentpress/sdk";
+import type { ImageRef, Media, Post } from "@wove/sdk";
 import { relativeTime } from "../lib/time";
 import { SEO_DESCRIPTION_MAX, SEO_TITLE_MAX, counter, seoPreview } from "../lib/seo";
 import { MediaPicker } from "./MediaPicker";

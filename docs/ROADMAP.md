@@ -5,7 +5,7 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 ## 1. Parity matrix
 
 ### Content
-| WordPress | agentpress | Notes |
+| WordPress | wove | Notes |
 |---|---|---|
 | Posts | ✅ | Markdown |
 | Pages | ✅ | Block documents + visual builder |
@@ -26,16 +26,16 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Search (admin + public) | ✅ | `/search` + `/api/public/search` |
 
 ### Media
-| WordPress | agentpress | Notes |
+| WordPress | wove | Notes |
 |---|---|---|
 | Media library, uploads, alt text | ✅ | Base64 upload; no size cap yet |
 | Image sizes / thumbnails / srcset | ✅ | sharp → webp 480/960/1600 + original; srcset everywhere |
 | Image editing (crop/rotate) | ❌ | |
 | oEmbed (YouTube, X…) | ❌ | Markdown + `html` block cover it manually |
-| Cloud storage (S3) | ✅ | `AGENTPRESS_STORAGE=s3` (Bun S3 client; R2/MinIO via endpoint) |
+| Cloud storage (S3) | ✅ | `WOVE_STORAGE=s3` (Bun S3 client; R2/MinIO via endpoint) |
 
 ### Users & access
-| WordPress | agentpress | Notes |
+| WordPress | wove | Notes |
 |---|---|---|
 | Roles: admin/editor/author/contributor/subscriber | 🟡 | admin + editor only; no author (own-posts-only) |
 | Invites, registration, password reset, profile | ❌ | No email layer at all |
@@ -44,7 +44,7 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Capabilities system | ✅ | Scopes; per-tool, exposed to agents |
 
 ### Appearance
-| WordPress | agentpress | Notes |
+| WordPress | wove | Notes |
 |---|---|---|
 | Themes (multiple, switchable) | 🟡 | One default theme; `@theme` alias exists |
 | Customizer / global styles (colors, fonts, logo) | ✅ | Settings → Design with live preview; `design.*` tools |
@@ -55,7 +55,7 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Site editor (FSE) | 🟡 | Pages yes; header/footer/blog templates no |
 
 ### Engagement
-| WordPress | agentpress | Notes |
+| WordPress | wove | Notes |
 |---|---|---|
 | Comments + moderation + spam | 🧩 | Optional plugin; many modern sites don't want it |
 | Pingbacks/trackbacks | ❌ | Dead tech; skip |
@@ -63,7 +63,7 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | Newsletter | 🧩 | |
 
 ### Platform
-| WordPress | agentpress | Notes |
+| WordPress | wove | Notes |
 |---|---|---|
 | Plugin system (hooks/filters) | 🟡 | TS plugins add tools + 4 hooks; no filters, no admin UI extension points, no install-from-admin |
 | Shortcodes | ❌ | Blocks replace them |
@@ -86,7 +86,7 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 | AI authoring (BYOK, multi-provider, metered) | ✅ | WP has none in core |
 | llms.txt / agent-readable site | ✅ | |
 
-## 2. Where agentpress already beats WordPress
+## 2. Where wove already beats WordPress
 Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identities, full audit trail, built-in multi-provider AI with metering, AI page builder with schema-validated output, zero-JS SSR pages, single-binary-style Bun deploy, `llms.txt`.
 
 ## 3. Proposed roadmap
@@ -108,7 +108,7 @@ Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identit
 12. **Page hierarchy** (parent) + permalink patterns.
 
 ### Phase C — the platform play
-13. **Collections** (custom content types with schema-defined fields — agentpress's CPT+ACF): defined in admin or by plugins, auto-get tools/MCP/OpenAPI/list views/blocks.
+13. **Collections** (custom content types with schema-defined fields — wove's CPT+ACF): defined in admin or by plugins, auto-get tools/MCP/OpenAPI/list views/blocks.
 14. Plugin admin UI extension points, filters, install from admin, registry.
 15. Postgres driver; multiple themes; header/footer block areas.
 

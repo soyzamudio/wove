@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, IndentDecrease, IndentIncrease, Link2, Menu as MenuIcon, Plus, Trash2, X } from "lucide-react";
-import type { Menu } from "@agentpress/sdk";
+import type { Menu } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { slugify } from "../lib/slug";
 import { useToast } from "../context/ToastContext";
@@ -142,7 +142,7 @@ function AddItemModal({ open, onClose, onAdd }: { open: boolean; onClose: () => 
           ) : options.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Nothing published yet — add a custom link below.</p>
           ) : (
-            <div className="ap-scroll max-h-56 space-y-1 overflow-y-auto">
+            <div className="wv-scroll max-h-56 space-y-1 overflow-y-auto">
               {options.map((o) => (
                 <button
                   key={o.kind + o.id}

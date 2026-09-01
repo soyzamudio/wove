@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { User, Actor } from "@agentpress/sdk";
+import type { User, Actor } from "@wove/sdk";
 import { apiMe } from "../api";
 
 interface AuthState {

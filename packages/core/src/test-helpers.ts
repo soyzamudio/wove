@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Actor } from "@agentpress/sdk";
+import type { Actor } from "@wove/sdk";
 import { openDb, type DB } from "./db";
 import { Hooks } from "./hooks";
 import { Registry, registerCoreTools, dispatch, type Ctx } from "./tools";
@@ -26,8 +26,8 @@ export const EDITOR: Actor = {
 export const ANON: Actor = { kind: "anon", id: null, scopes: [] };
 
 export function makeHarness(): Harness {
-  const dir = mkdtempSync(join(tmpdir(), "agentpress-test-"));
-  process.env.AGENTPRESS_MEDIA_DIR = join(dir, "media");
+  const dir = mkdtempSync(join(tmpdir(), "wove-test-"));
+  process.env.WOVE_MEDIA_DIR = join(dir, "media");
   const db = openDb(join(dir, "test.db"));
   const hooks = new Hooks();
   const registry = new Registry();

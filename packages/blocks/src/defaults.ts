@@ -1,4 +1,4 @@
-import type { BlockType } from "@agentpress/sdk";
+import type { BlockType } from "@wove/sdk";
 import type { AnyBlock, PropsOf } from "./types";
 
 /** Ordered list of block types for pickers. */

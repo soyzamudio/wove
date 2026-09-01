@@ -4,5 +4,5 @@ export default {
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dialect: "sqlite",
-  dbCredentials: { url: "./data/agentpress.db" },
+  dbCredentials: { url: "./data/wove.db" },
 } satisfies Config;

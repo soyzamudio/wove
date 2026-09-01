@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Block, BlocksDoc, Post } from "@agentpress/sdk";
+import type { Block, BlocksDoc, Post } from "@wove/sdk";
 import { aiUsage } from "../db/schema";
 import { ADMIN, EDITOR, makeHarness, unwrap } from "../test-helpers";
 import { setProviderFactory, type AiProviderClient, type AiProviderOptions } from "../ai/provider";

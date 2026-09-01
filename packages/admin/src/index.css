@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Auth + dashboard hero gradient (namespaced away from the blocks renderer’s .ap-hero): deep navy → black with a soft radial glow. CSS only. */
-.ap-auth-hero {
+/* Auth + dashboard hero gradient (namespaced away from the blocks renderer’s .wv-hero): deep navy → black with a soft radial glow. CSS only. */
+.wv-auth-hero {
   background-color: #0a0f1e;
   background-image:
     radial-gradient(75% 120% at 15% 0%, rgba(37, 99, 235, 0.38) 0%, rgba(37, 99, 235, 0) 60%),
@@ -12,42 +12,42 @@
 }
 
 /* Thin scrollbars inside the sidebar and other scroll panes. */
-.ap-scroll {
+.wv-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
-.ap-scroll::-webkit-scrollbar {
+.wv-scroll::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.ap-scroll::-webkit-scrollbar-thumb {
+.wv-scroll::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.18);
   border-radius: 9999px;
 }
-.ap-scroll::-webkit-scrollbar-track {
+.wv-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
 /* Markdown preview typography (the Tailwind typography plugin is not installed). */
-.ap-prose {
+.wv-prose {
   font-size: 0.875rem;
   line-height: 1.65;
   word-break: break-word;
 }
-.ap-prose > :first-child { margin-top: 0; }
-.ap-prose h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 1.4em 0 0.5em; }
-.ap-prose h2 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; margin: 1.4em 0 0.5em; }
-.ap-prose h3 { font-size: 1.05rem; font-weight: 600; margin: 1.3em 0 0.4em; }
-.ap-prose p, .ap-prose ul, .ap-prose ol, .ap-prose blockquote, .ap-prose pre, .ap-prose table { margin: 0.85em 0; }
-.ap-prose ul { list-style: disc; padding-left: 1.4em; }
-.ap-prose ol { list-style: decimal; padding-left: 1.4em; }
-.ap-prose li { margin: 0.25em 0; }
-.ap-prose a { color: #2563eb; text-decoration: underline; }
-.ap-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; background: rgba(113, 113, 122, 0.14); padding: 0.15em 0.35em; border-radius: 4px; }
-.ap-prose pre { background: rgba(113, 113, 122, 0.12); padding: 0.85em 1em; border-radius: 0.5rem; overflow-x: auto; }
-.ap-prose pre code { background: none; padding: 0; }
-.ap-prose blockquote { border-left: 3px solid rgba(113, 113, 122, 0.35); padding-left: 0.9em; color: rgba(113, 113, 122, 1); }
-.ap-prose hr { border: 0; border-top: 1px solid rgba(113, 113, 122, 0.3); margin: 1.6em 0; }
-.ap-prose img { max-width: 100%; border-radius: 0.5rem; }
-.ap-prose table { width: 100%; border-collapse: collapse; }
-.ap-prose th, .ap-prose td { border: 1px solid rgba(113, 113, 122, 0.3); padding: 0.4em 0.6em; text-align: left; }
+.wv-prose > :first-child { margin-top: 0; }
+.wv-prose h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 1.4em 0 0.5em; }
+.wv-prose h2 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; margin: 1.4em 0 0.5em; }
+.wv-prose h3 { font-size: 1.05rem; font-weight: 600; margin: 1.3em 0 0.4em; }
+.wv-prose p, .wv-prose ul, .wv-prose ol, .wv-prose blockquote, .wv-prose pre, .wv-prose table { margin: 0.85em 0; }
+.wv-prose ul { list-style: disc; padding-left: 1.4em; }
+.wv-prose ol { list-style: decimal; padding-left: 1.4em; }
+.wv-prose li { margin: 0.25em 0; }
+.wv-prose a { color: #2563eb; text-decoration: underline; }
+.wv-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; background: rgba(113, 113, 122, 0.14); padding: 0.15em 0.35em; border-radius: 4px; }
+.wv-prose pre { background: rgba(113, 113, 122, 0.12); padding: 0.85em 1em; border-radius: 0.5rem; overflow-x: auto; }
+.wv-prose pre code { background: none; padding: 0; }
+.wv-prose blockquote { border-left: 3px solid rgba(113, 113, 122, 0.35); padding-left: 0.9em; color: rgba(113, 113, 122, 1); }
+.wv-prose hr { border: 0; border-top: 1px solid rgba(113, 113, 122, 0.3); margin: 1.6em 0; }
+.wv-prose img { max-width: 100%; border-radius: 0.5rem; }
+.wv-prose table { width: 100%; border-collapse: collapse; }
+.wv-prose th, .wv-prose td { border: 1px solid rgba(113, 113, 122, 0.3); padding: 0.4em 0.6em; text-align: left; }

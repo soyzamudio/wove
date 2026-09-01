@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { BlockView, sampleDoc } from "@agentpress/blocks";
-import { FontChoice, FontMeta, designToCssVars, type Design, type ImageRef } from "@agentpress/sdk";
+import { BlockView, sampleDoc } from "@wove/blocks";
+import { FontChoice, FontMeta, designToCssVars, type Design, type ImageRef } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
 import { ImageRefField } from "../components/editor";
 import { Button, Card, ErrorBanner, Input, Label, Select, Spinner, Textarea, errorMessage } from "../components/ui";
 
-const PREVIEW_ID = "ap-design-preview";
+const PREVIEW_ID = "wv-design-preview";
 
 const DEFAULT_DESIGN: Design = {
   logo: null,
@@ -60,7 +60,7 @@ function useGoogleFonts(fonts: Design["fonts"]) {
     if (families.length === 0) return;
     const links = families.map((family) => {
       const href = `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
-      let link = document.head.querySelector<HTMLLinkElement>(`link[data-ap-font="${family}"]`);
+      let link = document.head.querySelector<HTMLLinkElement>(`link[data-wv-font="${family}"]`);
       if (!link) {
         link = document.createElement("link");
         link.rel = "stylesheet";
@@ -245,10 +245,10 @@ export function SettingsDesign() {
       {/* Live preview */}
       <div className="space-y-2">
         <div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Live preview</div>
-        <div className="ap-scroll max-h-[calc(100vh-11rem)] overflow-y-auto rounded-xl bg-zinc-100 p-4 dark:bg-zinc-950/60">
+        <div className="wv-scroll max-h-[calc(100vh-11rem)] overflow-y-auto rounded-xl bg-zinc-100 p-4 dark:bg-zinc-950/60">
           <div
             id={PREVIEW_ID}
-            style={{ ...cssVars, background: "var(--ap-bg)", color: "var(--ap-fg)", fontFamily: "var(--ap-font)" }}
+            style={{ ...cssVars, background: "var(--wv-bg)", color: "var(--wv-fg)", fontFamily: "var(--wv-font)" }}
             className="mx-auto overflow-hidden shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800"
           >
             {/* Custom CSS is admin-authored and trusted; injected as-is so the preview matches the site. */}

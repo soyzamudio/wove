@@ -28,8 +28,8 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { BlockMeta, newBlock, type BlocksDoc } from "@agentpress/blocks";
-import { designToCssVars, type ImageRef, type Post } from "@agentpress/sdk";
+import { BlockMeta, newBlock, type BlocksDoc } from "@wove/blocks";
+import { designToCssVars, type ImageRef, type Post } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useBuilderState } from "../hooks/useBuilderState";
 import { useDraftRecovery } from "../hooks/useDraftRecovery";
@@ -859,7 +859,7 @@ export function PageBuilder() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Canvas */}
-        <div className="ap-scroll min-w-0 overflow-y-auto rounded-xl bg-zinc-100 p-4 dark:bg-zinc-950/60 lg:max-h-[calc(100vh-9rem)]">
+        <div className="wv-scroll min-w-0 overflow-y-auto rounded-xl bg-zinc-100 p-4 dark:bg-zinc-950/60 lg:max-h-[calc(100vh-9rem)]">
           <CanvasSheet width={preview === "mobile" ? MOBILE_WIDTH : null} style={canvasVars}>
             {builder.blocks.length === 0 ? (
               emptyCanvas

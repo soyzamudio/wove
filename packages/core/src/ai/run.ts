@@ -1,4 +1,4 @@
-import type { AiKeySource } from "@agentpress/sdk";
+import type { AiKeySource } from "@wove/sdk";
 import { aiUsage } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import type { Ctx } from "../tools/registry";

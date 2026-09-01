@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Settings } from "@agentpress/sdk";
+import type { Settings } from "@wove/sdk";
 import { formatLlmsFullTxt, formatLlmsTxt } from "./llms";
 
 const settings: Settings = {

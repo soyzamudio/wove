@@ -1,4 +1,4 @@
-import type { ImportJob } from "@agentpress/sdk";
+import type { ImportJob } from "@wove/sdk";
 
 export type ImportWarning = ImportJob["warnings"][number];
 

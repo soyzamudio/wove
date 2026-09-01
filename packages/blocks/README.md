@@ -1,7 +1,7 @@
-# @agentpress/blocks
+# @wove/blocks
 
-The one shared renderer for AgentPress page blocks. The block schema lives in
-`@agentpress/sdk` (`BlockProps`, `Block`, `BlocksDoc`); this package turns it
+The one shared renderer for Wove page blocks. The block schema lives in
+`@wove/sdk` (`BlockProps`, `Block`, `BlocksDoc`); this package turns it
 into HTML — the same HTML in both consumers.
 
 - **Admin** (React, client-side): `<BlockView block={block} ctx={ctx} />` per
@@ -14,8 +14,8 @@ Every component is pure and SSR-safe: no hooks, no `window`, no client JS
 (the FAQ accordion uses native `<details>`).
 
 ```ts
-import { BlockRenderer, sampleDoc } from "@agentpress/blocks";
-import "@agentpress/blocks/blocks.css";
+import { BlockRenderer, sampleDoc } from "@wove/blocks";
+import "@wove/blocks/blocks.css";
 ```
 
 `RenderContext` is `{ mediaBase?, linkBase? }`; `resolveUrl` applies `mediaBase`
@@ -25,10 +25,10 @@ absolute urls alone.
 ## CSS variables
 
 `blocks.css` is plain CSS (no Tailwind, no build plugin). Classes are namespaced
-`ap-`. Override any of these on `.ap-blocks`, `.ap-block`, or `:root`:
+`wv-`. Override any of these on `.wv-blocks`, `.wv-block`, or `:root`:
 
-`--ap-accent` (#2563eb) · `--ap-accent-fg` · `--ap-fg` · `--ap-bg` · `--ap-muted` ·
-`--ap-border` · `--ap-subtle` · `--ap-radius` (12px) · `--ap-max` (72rem) ·
-`--ap-content` (68ch) · `--ap-pad-y` · `--ap-pad-x` · `--ap-font`
+`--wv-accent` (#2563eb) · `--wv-accent-fg` · `--wv-fg` · `--wv-bg` · `--wv-muted` ·
+`--wv-border` · `--wv-subtle` · `--wv-radius` (12px) · `--wv-max` (72rem) ·
+`--wv-content` (68ch) · `--wv-pad-y` · `--wv-pad-x` · `--wv-font`
 
 Dark values are applied automatically via `prefers-color-scheme: dark`.

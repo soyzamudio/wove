@@ -9,9 +9,9 @@ export function newId(size = 16): string {
   return out;
 }
 
-/** Opaque-ish API key: `ap_` + 40 random chars. */
+/** Opaque-ish API key: `wove_` + 40 random chars. */
 export function newApiKey(): string {
-  return `ap_${newId(40)}`;
+  return `wove_${newId(40)}`;
 }
 
 export function sha256(input: string): string {

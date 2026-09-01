@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AiProvider, type AiConfig, type AiConfigureInput } from "@agentpress/sdk";
+import { AiProvider, type AiConfig, type AiConfigureInput } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
 import { relativeTime } from "../lib/time";
@@ -251,7 +251,7 @@ export function SettingsAi() {
               </Button>
             </div>
             <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Set one here or via AGENTPRESS_AI_&lt;PROVIDER&gt;_KEY on the server.
+              Set one here or via WOVE_AI_&lt;PROVIDER&gt;_KEY on the server.
             </div>
           </Card>
         </>

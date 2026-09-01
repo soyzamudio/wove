@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bot, KeyRound, Plus } from "lucide-react";
-import { Scope, type Agent as AgentType } from "@agentpress/sdk";
+import { Scope, type Agent as AgentType } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";
@@ -25,7 +25,7 @@ function mcpSnippet(apiKey: string): string {
   return JSON.stringify(
     {
       mcpServers: {
-        agentpress: {
+        wove: {
           url: "http://localhost:4000/mcp",
           headers: { Authorization: `Bearer ${apiKey}` },
         },

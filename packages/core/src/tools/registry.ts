@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Actor, Channel, Scope } from "@agentpress/sdk";
+import type { Actor, Channel, Scope } from "@wove/sdk";
 import type { DB } from "../db";
 import { auditLog } from "../db/schema";
 import { newId, nowIso } from "../ids";
@@ -107,10 +107,10 @@ export function hasScopes(actor: Actor, required: readonly Scope[]): boolean {
  * AUDIT POLICY
  * Every mutating tool call is written to `audit_log` (ok or not), and every FAILURE of any
  * call — reads included — is written too. Successful reads are skipped: they are high-volume,
- * carry no state change, and would dominate the table. Flip `AGENTPRESS_AUDIT_READS=1` to
+ * carry no state change, and would dominate the table. Flip `WOVE_AUDIT_READS=1` to
  * record them as well.
  */
-const AUDIT_READS = process.env.AGENTPRESS_AUDIT_READS === "1";
+const AUDIT_READS = process.env.WOVE_AUDIT_READS === "1";
 
 function writeAudit(ctx: Ctx, tool: string, input: unknown, ok: boolean, error: string | null) {
   try {

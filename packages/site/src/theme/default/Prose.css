@@ -1,19 +1,19 @@
 :root {
   color-scheme: light dark;
   /* Design-system tokens (set by Layout.astro from `design.ts`/`designToCssVars`). */
-  --ap-accent: #8a5a3b;
-  --ap-bg: #fdfdfb;
-  --ap-fg: #1a1a17;
-  --ap-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --ap-font-heading: var(--ap-font);
-  --ap-radius: 12px;
+  --wv-accent: #8a5a3b;
+  --wv-bg: #fdfdfb;
+  --wv-fg: #1a1a17;
+  --wv-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --wv-font-heading: var(--wv-font);
+  --wv-radius: 12px;
 
   /* Theme-local aliases layered on top of the design tokens. */
-  --bg: var(--ap-bg);
-  --fg: var(--ap-fg);
+  --bg: var(--wv-bg);
+  --fg: var(--wv-fg);
   --muted: #6b6a63;
   --border: #e5e3db;
-  --accent: var(--ap-accent);
+  --accent: var(--wv-accent);
   --code-bg: #f2f0e8;
 }
 
@@ -38,7 +38,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--ap-font), "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--wv-font), "Apple Color Emoji", "Segoe UI Emoji";
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -49,7 +49,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--ap-font-heading);
+  font-family: var(--wv-font-heading);
 }
 
 a {
@@ -180,7 +180,7 @@ a:hover {
   display: inline-block;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--border);
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   text-decoration: none;
 }
 
@@ -219,7 +219,7 @@ a:hover {
 
 .prose img {
   max-width: 100%;
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
 }
 
 .prose blockquote {
@@ -239,7 +239,7 @@ a:hover {
 .prose pre {
   background: var(--code-bg);
   padding: 1em;
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   overflow-x: auto;
 }
 
@@ -287,7 +287,7 @@ a:hover {
 
 .site-search input[type="search"] {
   border: 1px solid var(--border);
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   padding: 0.35rem 0.6rem;
   font: inherit;
   color: var(--fg);
@@ -296,7 +296,7 @@ a:hover {
 
 .site-search button {
   border: 1px solid var(--border);
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   padding: 0.35rem 0.75rem;
   font: inherit;
   background: var(--accent);
@@ -346,7 +346,7 @@ a:hover {
   min-width: 12rem;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   display: none;
   z-index: 10;
@@ -380,7 +380,7 @@ a:hover {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   margin-bottom: 1.5rem;
   object-fit: cover;
 }
@@ -391,7 +391,7 @@ a:hover {
   height: auto;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   margin-bottom: 0.75rem;
 }
 
@@ -405,7 +405,7 @@ a:hover {
 .search-form input[type="search"] {
   flex: 1;
   border: 1px solid var(--border);
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   padding: 0.5rem 0.75rem;
   font: inherit;
   color: var(--fg);
@@ -414,7 +414,7 @@ a:hover {
 
 .search-form button {
   border: 1px solid var(--border);
-  border-radius: var(--ap-radius);
+  border-radius: var(--wv-radius);
   padding: 0.5rem 1rem;
   font: inherit;
   background: var(--accent);

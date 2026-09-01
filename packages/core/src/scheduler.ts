@@ -1,5 +1,5 @@
 import { and, eq, lte } from "drizzle-orm";
-import type { Actor } from "@agentpress/sdk";
+import type { Actor } from "@wove/sdk";
 import type { DB } from "./db";
 import { auditLog, posts } from "./db/schema";
 import { hooks as defaultHooks, type Hooks } from "./hooks";
@@ -60,7 +60,7 @@ export interface SchedulerHandle {
 }
 
 export function schedulerEnabled(): boolean {
-  return process.env.AGENTPRESS_SCHEDULER !== "0";
+  return process.env.WOVE_SCHEDULER !== "0";
 }
 
 /**

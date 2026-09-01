@@ -1,4 +1,4 @@
-import type { Post, Settings } from "@agentpress/sdk";
+import type { Post, Settings } from "@wove/sdk";
 
 /** Escape text for use inside RSS/XML element content. Pure, unit-tested. */
 export function xmlEscape(value: string): string {

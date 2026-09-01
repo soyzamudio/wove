@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { BlockProps, BlocksDoc, type BlockType } from "@agentpress/sdk";
+import { BlockProps, BlocksDoc, type BlockType } from "@wove/sdk";
 import { BLOCK_TYPES, blockDefaults, newBlock, resolveUrl, renderMarkdown, BlockRenderer, BlockView, imgAttrs, SIZES } from "./index";
 import { sampleDoc } from "./fixtures";
 import { resolveIcon } from "./icon";
@@ -72,7 +72,7 @@ describe("rendering", () => {
     const doc = sampleDoc();
     const html = renderToStaticMarkup(<BlockRenderer doc={doc} ctx={{}} />);
     for (const block of doc.blocks) {
-      expect(html).toContain(`ap-block ap-block--${block.type}`);
+      expect(html).toContain(`wv-block wv-block--${block.type}`);
       expect(html).toContain(`data-block-id="${block.id}"`);
     }
   });
@@ -85,7 +85,7 @@ describe("rendering", () => {
     expect(html).toContain("Frequently asked questions");
     expect(html).toContain("<details");
     expect(html).toContain("<summary");
-    expect(html).toContain("ap-btn ap-btn--primary");
+    expect(html).toContain("wv-btn wv-btn--primary");
     expect(html).toContain('loading="lazy"');
     expect(html).toContain("https://cdn.test/media/placeholder.svg");
     expect(html).toContain("<svg"); // lucide icons

@@ -1,12 +1,12 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import type { AiConfig, AiUsageEntry, Post } from "@agentpress/sdk";
+import type { AiConfig, AiUsageEntry, Post } from "@wove/sdk";
 import { eq } from "drizzle-orm";
 import { aiUsage, auditLog } from "../db/schema";
 import { ADMIN, EDITOR, makeHarness, unwrap } from "../test-helpers";
 import { clearSiteKey, resetEncryptionKey } from "../ai/keys";
 import { setProviderFactory, type AiProviderClient, type AiProviderOptions } from "../ai/provider";
 
-process.env.AGENTPRESS_SECRET = "test-secret-for-ai-tools";
+process.env.WOVE_SECRET = "test-secret-for-ai-tools";
 resetEncryptionKey();
 
 const h = makeHarness();
@@ -44,7 +44,7 @@ beforeEach(() => {
   clearSiteKey(h.db);
   seen = [];
   nextTexts = [];
-  delete process.env.AGENTPRESS_AI_ANTHROPIC_KEY;
+  delete process.env.WOVE_AI_ANTHROPIC_KEY;
 });
 
 const config = async () => unwrap<AiConfig>(await h.call(ADMIN, "ai.config", {}));
@@ -190,7 +190,7 @@ describe("ai.draftPost", () => {
 
 describe("ai.models / ai.test / ai.usage", () => {
   test("ai.models lists the provider's models", async () => {
-    process.env.AGENTPRESS_AI_ANTHROPIC_KEY = "platform-test-key"; // live lookup needs a key
+    process.env.WOVE_AI_ANTHROPIC_KEY = "platform-test-key"; // live lookup needs a key
     const models = unwrap<{ id: string; name: string | null }[]>(await h.call(ADMIN, "ai.models", {}));
     // live results come first, built-in suggestions are appended after
     expect(models[0]).toEqual({ id: "fake-1", name: "Fake One" });

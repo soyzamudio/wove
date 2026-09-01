@@ -6,7 +6,7 @@ export interface ClientOptions {
   fetch?: typeof fetch;
 }
 
-export class AgentpressError extends Error {
+export class WoveError extends Error {
   constructor(public status: number, public code: string, message: string, public details?: unknown) {
     super(message);
   }
@@ -24,7 +24,7 @@ export function createClient(opts: ClientOptions) {
       body: JSON.stringify(input ?? {}),
     });
     const body = (await res.json().catch(() => ({}))) as any;
-    if (!res.ok) throw new AgentpressError(res.status, body.code ?? "error", body.message ?? res.statusText, body.details);
+    if (!res.ok) throw new WoveError(res.status, body.code ?? "error", body.message ?? res.statusText, body.details);
     return body as ToolOutput<N>;
   }
   return { call, baseUrl: base };

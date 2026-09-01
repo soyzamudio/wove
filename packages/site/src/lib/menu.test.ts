@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Menu } from "@agentpress/sdk";
+import type { Menu } from "@wove/sdk";
 import { resolveMenuItems } from "./menu";
 
 describe("resolveMenuItems", () => {

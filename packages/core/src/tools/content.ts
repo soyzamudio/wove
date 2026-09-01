@@ -1,5 +1,5 @@
 import { and, desc, eq, like, ne, or, inArray } from "drizzle-orm";
-import { BlocksDoc, ToolCatalog, ToolDescriptions, type PostFormat } from "@agentpress/sdk";
+import { BlocksDoc, ToolCatalog, ToolDescriptions, type PostFormat } from "@wove/sdk";
 import { posts, postTerms, revisions, terms as termsTable } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import { defineTool, badRequest, notFound, type Ctx } from "./registry";

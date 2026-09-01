@@ -1,19 +1,19 @@
-import { createClient, AgentpressError, type ImportJob, type ImportOptions, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@agentpress/sdk";
+import { createClient, WoveError, type ImportJob, type ImportOptions, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@wove/sdk";
 import { useMutation, useQuery, useQueryClient, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
 
 export const API_URL: string = (import.meta as any).env?.VITE_API_URL ?? "http://localhost:4000";
 
-/** Wraps global fetch to always send the `x-ap-channel: ui` header (per architecture: every
+/** Wraps global fetch to always send the `x-wove-channel: ui` header (per architecture: every
  * client of the tool API identifies its channel). Cookies are included by the sdk client itself. */
 export function channelFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
-  headers.set("x-ap-channel", "ui");
+  headers.set("x-wove-channel", "ui");
   return fetch(input, { ...init, headers });
 }
 
 export const client = createClient({ baseUrl: API_URL, fetch: channelFetch });
 
-export { AgentpressError };
+export { WoveError };
 
 // ---------------------------------------------------------------------------
 // Auth (plain REST — not part of the sdk ToolCatalog)
@@ -33,7 +33,7 @@ async function authFetch<T>(path: string, body?: unknown): Promise<T> {
   });
   const data = (await res.json().catch(() => ({}))) as any;
   if (!res.ok) {
-    throw new AgentpressError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
+    throw new WoveError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
   }
   return data as T;
 }
@@ -55,7 +55,7 @@ export async function apiMe(): Promise<MeResponse | null> {
   if (res.status === 401) return null;
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as any;
-    throw new AgentpressError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
+    throw new WoveError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
   }
   return (await res.json()) as MeResponse;
 }
@@ -73,7 +73,7 @@ export interface ToolCatalogEntry {
 
 export async function fetchToolCatalog(): Promise<ToolCatalogEntry[]> {
   const res = await channelFetch(`${API_URL}/api/tools`, { method: "GET", credentials: "include" });
-  if (!res.ok) throw new AgentpressError(res.status, "error", res.statusText);
+  if (!res.ok) throw new WoveError(res.status, "error", res.statusText);
   // core wraps the list: { tools: [...] }
   const body = (await res.json()) as { tools: ToolCatalogEntry[] };
   return body.tools;
@@ -95,7 +95,7 @@ export async function importWordpress(file: File, options: ImportOptions): Promi
   });
   const data = (await res.json().catch(() => ({}))) as any;
   if (!res.ok) {
-    throw new AgentpressError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
+    throw new WoveError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
   }
   return data as ImportJob;
 }
@@ -116,9 +116,9 @@ export function toolQueryKey<N extends ToolName>(name: N, input?: ToolInput<N>):
 export function useToolQuery<N extends ToolName>(
   name: N,
   input: ToolInput<N>,
-  options?: Omit<UseQueryOptions<ToolOutput<N>, AgentpressError>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<ToolOutput<N>, WoveError>, "queryKey" | "queryFn">
 ) {
-  return useQuery<ToolOutput<N>, AgentpressError>({
+  return useQuery<ToolOutput<N>, WoveError>({
     queryKey: toolQueryKey(name, input),
     queryFn: () => client.call(name, input),
     ...options,
@@ -127,9 +127,9 @@ export function useToolQuery<N extends ToolName>(
 
 export function useToolMutation<N extends ToolName>(
   name: N,
-  options?: Omit<UseMutationOptions<ToolOutput<N>, AgentpressError, ToolInput<N>>, "mutationFn">
+  options?: Omit<UseMutationOptions<ToolOutput<N>, WoveError, ToolInput<N>>, "mutationFn">
 ) {
-  return useMutation<ToolOutput<N>, AgentpressError, ToolInput<N>>({
+  return useMutation<ToolOutput<N>, WoveError, ToolInput<N>>({
     mutationFn: (input: ToolInput<N>) => client.call(name, input),
     ...options,
   });

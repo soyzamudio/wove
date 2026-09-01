@@ -1,11 +1,11 @@
 import { and, eq, isNull } from "drizzle-orm";
-import type { Actor, Scope } from "@agentpress/sdk";
+import type { Actor, Scope } from "@wove/sdk";
 import type { DB } from "./db";
 import { agents, sessions, users } from "./db/schema";
 import { newId, nowIso, sha256 } from "./ids";
 import { ROLE_SCOPES } from "./tools/registry";
 
-export const SESSION_COOKIE = "ap_session";
+export const SESSION_COOKIE = "wove_session";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
 export const ANON: Actor = { kind: "anon", id: null, scopes: [] };
@@ -39,7 +39,7 @@ export function resolveActor(db: DB, req: Request): Resolved {
   const auth = req.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) {
     const key = auth.slice(7).trim();
-    if (key.startsWith("ap_")) {
+    if (key.startsWith("wove_")) {
       const row = db.select().from(agents)
         .where(and(eq(agents.keyHash, sha256(key)), isNull(agents.revokedAt)))
         .get();

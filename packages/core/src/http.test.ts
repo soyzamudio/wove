@@ -18,7 +18,7 @@ describe("http + auth + plugins", () => {
     const created = unwrap(
       await h.call({ kind: "user", id: admin.id, scopes: ["*"] }, "agent.create", { name: "writer", scopes: ["content:read", "content:write"] }),
     );
-    expect(created.apiKey).toMatch(/^ap_/);
+    expect(created.apiKey).toMatch(/^wove_/);
 
     const auth = { authorization: `Bearer ${created.apiKey}` };
     const me = await req("/api/auth/me", { headers: auth });
@@ -39,7 +39,7 @@ describe("http + auth + plugins", () => {
     expect((await denied.json()).code).toBe("forbidden");
 
     // a bogus key is anon -> 401
-    expect((await post("/api/tools/post.list", {}, { authorization: "Bearer ap_bogus" })).status).toBe(401);
+    expect((await post("/api/tools/post.list", {}, { authorization: "Bearer wove_bogus" })).status).toBe(401);
   });
 
   test("login sets a session cookie usable for tool calls", async () => {
@@ -50,7 +50,7 @@ describe("http + auth + plugins", () => {
     const res = await post("/api/auth/login", { email: "ed@example.com", password: "password123" });
     expect(res.status).toBe(200);
     const cookie = res.headers.get("set-cookie")!.split(";")[0]!;
-    expect(cookie).toStartWith("ap_session=");
+    expect(cookie).toStartWith("wove_session=");
 
     const listed = await post("/api/tools/post.list", {}, { cookie });
     expect(listed.status).toBe(200);

@@ -14,8 +14,8 @@ The admin UI is *just another client* of the same tools. Nothing the UI can do i
 
 ## Actors & auth
 
-- `users` (humans) — email + password session cookie (`ap_session`).
-- `agents` — API keys (`Authorization: Bearer ap_...`), created by a user, with **scopes** (`content:read`, `content:write`, `media:write`, `settings:write`, `agents:manage`, `*`).
+- `users` (humans) — email + password session cookie (`wove_session`).
+- `agents` — API keys (`Authorization: Bearer wove_...`), created by a user, with **scopes** (`content:read`, `content:write`, `media:write`, `settings:write`, `agents:manage`, `*`).
 - Every request resolves to an `Actor = { kind: 'user'|'agent'|'anon', id, scopes }`.
 
 ## Content model (v1)
@@ -53,7 +53,7 @@ Built-in, provider-agnostic, and exposed as tools (`ai.*`) so agents get the sam
 
 **Providers** via official SDKs only: `@anthropic-ai/sdk` (Anthropic), `openai` (OpenAI, xAI/Grok, and any OpenAI-compatible endpoint such as Ollama/LM Studio/OpenRouter via `baseUrl`), `@google/genai` (Google). Adapters live in `packages/core/src/ai/providers/`; each implements `generate`, `stream`, `listModels`.
 
-**Key resolution** (per call): site key (BYOK, stored AES-256-GCM-encrypted under `AGENTPRESS_SECRET`) → platform key from `AGENTPRESS_AI_<PROVIDER>_KEY` → none (actionable error). `ai.config` reports `keySource: byok | platform | none` and a masked hint; the key is never returned.
+**Key resolution** (per call): site key (BYOK, stored AES-256-GCM-encrypted under `WOVE_SECRET`) → platform key from `WOVE_AI_<PROVIDER>_KEY` → none (actionable error). `ai.config` reports `keySource: byok | platform | none` and a masked hint; the key is never returned.
 
 **Metering**: every provider call writes an `ai_usage` row (actor, channel, tool, provider, model, input/output tokens, keySource, duration, ok). Core records **tokens only — no prices**. The OSS admin shows totals; the cloud edition prices `keySource=platform` rows.
 
@@ -63,7 +63,7 @@ Built-in, provider-agnostic, and exposed as tools (`ai.*`) so agents get the sam
 
 Posts are Markdown; **pages are block documents** (`post.format = "blocks"`, `post.blocks: { version: 1, blocks: Block[] }`, stored as JSON in `content`). Blocks are **section-level** (hero, features, markdown, image, gallery, cta, testimonials, logos, faq, stats, columns, html) with typed props — the schema lives in `packages/sdk/src/blocks.ts` and is the single source of truth for validation, AI structured output, the builder, and rendering.
 
-**One renderer**: `packages/blocks` (`@agentpress/blocks`) holds the React components + plain CSS (`ap-*` classes, CSS variables). The admin canvas renders it client-side; Astro renders the same components server-side with no client JS. Preview = production.
+**One renderer**: `packages/blocks` (`@wove/blocks`) holds the React components + plain CSS (`wv-*` classes, CSS variables). The admin canvas renders it client-side; Astro renders the same components server-side with no client JS. Preview = production.
 
 **Editing**: the whole document is replaced via `post.update { blocks }` — atomic, easy to audit and revise. `block.catalog` exposes the block types + JSON schemas so agents can discover them; `block.validate` normalizes a doc.
 

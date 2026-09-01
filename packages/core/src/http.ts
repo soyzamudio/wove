@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import { and, count, desc, eq, inArray, like, lte, or, sql } from "drizzle-orm";
 import { join } from "node:path";
-import type { Channel } from "@agentpress/sdk";
+import type { Channel } from "@wove/sdk";
 import type { DB } from "./db";
 import { posts, postTerms, terms as termsTable, users } from "./db/schema";
 import type { Hooks } from "./hooks";
@@ -51,7 +51,7 @@ export function createApp(deps: AppDeps) {
     cors({
       origin: (o) => (o && ALLOWED_ORIGINS.includes(o) ? o : ALLOWED_ORIGINS[0]!),
       credentials: true,
-      allowHeaders: ["content-type", "authorization", "x-ap-channel", "mcp-session-id", "mcp-protocol-version", "accept"],
+      allowHeaders: ["content-type", "authorization", "x-wove-channel", "mcp-session-id", "mcp-protocol-version", "accept"],
       allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
       exposeHeaders: ["mcp-session-id"],
     }),
@@ -120,7 +120,7 @@ export function createApp(deps: AppDeps) {
   // ------------------------------------------------------------ tools
   app.post("/api/tools/:name", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
-    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     const body = await c.req.json().catch(() => ({}));
     const result = await dispatch(c.req.param("name"), body, { actor, channel, db, hooks }, registry);
     if (!result.ok) return c.json(result.error, result.status as 400);
@@ -135,7 +135,7 @@ export function createApp(deps: AppDeps) {
    */
   app.post("/api/import/wordpress", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
-    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     let form: FormData;
     try {
       form = await c.req.formData();
@@ -167,11 +167,11 @@ export function createApp(deps: AppDeps) {
   /** The whole site as a downloadable JSON file. Same scopes as `export.site`. */
   app.get("/api/export/site.json", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
-    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     const result = await dispatch("export.site", {}, { actor, channel, db, hooks }, registry);
     if (!result.ok) return c.json(result.error, result.status as 400);
     const stamp = new Date().toISOString().slice(0, 10);
-    c.header("content-disposition", `attachment; filename="agentpress-export-${stamp}.json"`);
+    c.header("content-disposition", `attachment; filename="wove-export-${stamp}.json"`);
     c.header("content-type", "application/json; charset=utf-8");
     return c.body(JSON.stringify(result.data));
   });
@@ -198,7 +198,7 @@ export function createApp(deps: AppDeps) {
    */
   app.post("/api/ai/stream", async (c) => {
     const { actor } = resolveActor(db, c.req.raw);
-    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    const channel: Channel = c.req.header("x-wove-channel") === "ui" ? "ui" : "rest";
     const ctx: Ctx = { actor, channel, db, hooks };
     const raw = await c.req.json().catch(() => ({}));
 

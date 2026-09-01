@@ -8,14 +8,14 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { AgentpressError } from "../api";
+import { WoveError } from "../api";
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
 export function errorMessage(err: unknown): string {
-  if (err instanceof AgentpressError) return err.message;
+  if (err instanceof WoveError) return err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }
@@ -482,7 +482,7 @@ export function SlideOver({
       <aside
         role="dialog"
         aria-modal="true"
-        className="ap-scroll absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
+        className="wv-scroll absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
       >
         <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white px-5 py-3.5 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>

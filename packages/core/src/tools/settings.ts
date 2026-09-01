@@ -1,5 +1,5 @@
 import { count, eq } from "drizzle-orm";
-import { ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { media, posts } from "../db/schema";
 import { defineTool } from "./registry";
 import { readSettings, writeSettings } from "./shared";

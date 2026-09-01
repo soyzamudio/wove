@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ScrollText, Search } from "lucide-react";
-import type { AuditEntry } from "@agentpress/sdk";
+import type { AuditEntry } from "@wove/sdk";
 import { useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
 import {

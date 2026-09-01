@@ -36,7 +36,7 @@ export function Tools() {
                 <summary className="cursor-pointer text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
                   Input schema
                 </summary>
-                <pre className="ap-scroll mt-2 max-h-72 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+                <pre className="wv-scroll mt-2 max-h-72 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900">
                   {JSON.stringify(tool.inputSchema, null, 2)}
                 </pre>
               </details>

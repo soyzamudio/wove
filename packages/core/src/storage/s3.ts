@@ -15,15 +15,15 @@ export class StorageConfigError extends Error {}
 
 /** Read S3 settings from the environment. Throws when a required value is missing. */
 export function s3ConfigFromEnv(env: Record<string, string | undefined> = process.env): S3Config {
-  const bucket = env.AGENTPRESS_S3_BUCKET;
-  if (!bucket) throw new StorageConfigError("AGENTPRESS_STORAGE=s3 requires AGENTPRESS_S3_BUCKET");
+  const bucket = env.WOVE_S3_BUCKET;
+  if (!bucket) throw new StorageConfigError("WOVE_STORAGE=s3 requires WOVE_S3_BUCKET");
   return {
     bucket,
-    region: env.AGENTPRESS_S3_REGION ?? "us-east-1",
-    endpoint: env.AGENTPRESS_S3_ENDPOINT || undefined,
-    accessKeyId: env.AGENTPRESS_S3_ACCESS_KEY_ID || undefined,
-    secretAccessKey: env.AGENTPRESS_S3_SECRET_ACCESS_KEY || undefined,
-    publicUrl: env.AGENTPRESS_S3_PUBLIC_URL || undefined,
+    region: env.WOVE_S3_REGION ?? "us-east-1",
+    endpoint: env.WOVE_S3_ENDPOINT || undefined,
+    accessKeyId: env.WOVE_S3_ACCESS_KEY_ID || undefined,
+    secretAccessKey: env.WOVE_S3_SECRET_ACCESS_KEY || undefined,
+    publicUrl: env.WOVE_S3_PUBLIC_URL || undefined,
   };
 }
 

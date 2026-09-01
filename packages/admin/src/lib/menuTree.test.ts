@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { MenuItem } from "@agentpress/sdk";
+import type { MenuItem } from "@wove/sdk";
 import { blockRange, flatten, indent, move, outdent, remove, unflatten, updateItem, type FlatMenuItem } from "./menuTree";
 
 const nested: MenuItem[] = [

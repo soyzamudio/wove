@@ -1,10 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { BlocksDoc, ImageRef, Post } from "@agentpress/sdk";
-import { parseBlocksDoc, Post as PostSchema } from "@agentpress/sdk";
+import type { BlocksDoc, ImageRef, Post } from "@wove/sdk";
+import { parseBlocksDoc, Post as PostSchema } from "@wove/sdk";
 import type { DB } from "../db";
 import { posts, postTerms, terms as termsTable, settings as settingsTable } from "../db/schema";
 import type { PostRow } from "../db/schema";
-import { Settings } from "@agentpress/sdk";
+import { Settings } from "@wove/sdk";
 import { newId, nowIso, slugify } from "../ids";
 
 /** Opaque offset cursor. Simple and stable enough for v1; swap for keyset when lists get big. */

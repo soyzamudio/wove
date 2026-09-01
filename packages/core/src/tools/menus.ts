@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { Menu, ToolCatalog, ToolDescriptions, type MenuItem } from "@agentpress/sdk";
+import { Menu, ToolCatalog, ToolDescriptions, type MenuItem } from "@wove/sdk";
 import type { DB } from "../db";
 import { menus } from "../db/schema";
 import { newId, nowIso } from "../ids";

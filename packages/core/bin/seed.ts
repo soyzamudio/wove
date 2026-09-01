@@ -8,7 +8,7 @@ import { hooks } from "../src/hooks";
 import { registerCoreTools, registry, dispatch } from "../src/tools";
 import { mediaDir } from "../src/tools/media";
 import { createUser, userActor } from "../src/auth";
-import type { Actor } from "@agentpress/sdk";
+import type { Actor } from "@wove/sdk";
 
 const ADMIN_EMAIL = "admin@example.com";
 const ADMIN_PASSWORD = "admin1234";
@@ -45,7 +45,7 @@ if (existingAgent) {
 
 // ---- settings
 await call("settings.update", {
-  siteTitle: "agentpress demo",
+  siteTitle: "Wove demo",
   tagline: "The CMS for the agentic era",
   siteUrl: "http://localhost:4321",
 });
@@ -54,9 +54,9 @@ await call("settings.update", {
 const soon = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
 const seedPosts = [
   {
-    type: "post", title: "Hello, agentpress", status: "published",
+    type: "post", title: "Hello, Wove", status: "published",
     content: "# Hello\n\nEvery admin action here is a typed, permissioned, auditable tool.",
-    excerpt: "Why agentpress exists.",
+    excerpt: "Why Wove exists.",
     terms: [{ taxonomy: "category", name: "Announcements" }, { taxonomy: "tag", name: "intro" }],
   },
   {
@@ -82,7 +82,7 @@ const seedPosts = [
   },
   {
     type: "page", title: "Home", slug: "home", status: "published",
-    seo: { description: "agentpress is an open-source CMS where every editorial action is a typed, permissioned, audited tool — drivable by people and agents alike." },
+    seo: { description: "Wove is an open-source CMS where every editorial action is a typed, permissioned, audited tool — drivable by people and agents alike." },
     // A blocks page: `content` is the JSON document, `format` is set to "blocks" by post.create.
     blocks: {
       version: 1,
@@ -92,7 +92,7 @@ const seedPosts = [
           props: {
             eyebrow: "Open source CMS",
             headline: "The CMS agents can actually drive",
-            subheadline: "agentpress exposes every editorial action as a typed, permissioned, audited tool — so people and agents publish through the same door.",
+            subheadline: "Wove exposes every editorial action as a typed, permissioned, audited tool — so people and agents publish through the same door.",
             layout: "split",
             buttons: [
               { label: "Read the docs", href: "/about", variant: "primary" },
@@ -152,7 +152,7 @@ const seedPosts = [
   },
   {
     type: "page", title: "About", slug: "about", status: "published",
-    content: "agentpress is an open-source CMS built for humans and agents on equal footing.",
+    content: "Wove is an open-source CMS built for humans and agents on equal footing.",
   },
 ];
 
@@ -189,7 +189,7 @@ console.log(`  content ${created} post(s)/page(s) created`);
 // ---- featured image on the first published post, when the library has something to point at
 const firstImage = db.select().from(media).all().find((m) => m.mime.startsWith("image/"));
 if (firstImage) {
-  const target = db.select().from(posts).where(eq(posts.slug, "hello-agentpress")).get();
+  const target = db.select().from(posts).where(eq(posts.slug, "hello-wove")).get();
   if (target && !target.featuredImage) {
     await call("post.update", {
       id: target.id,

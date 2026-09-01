@@ -7,14 +7,14 @@
  */
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ImportJob } from "@agentpress/sdk";
+import { ImportJob } from "@wove/sdk";
 import { mediaDir } from "../storage";
 
 export const MAX_LISTED_JOBS = 20;
 
-/** `AGENTPRESS_IMPORTS_DIR`, else a sibling of the media dir (so tests inherit the temp dir). */
+/** `WOVE_IMPORTS_DIR`, else a sibling of the media dir (so tests inherit the temp dir). */
 export function importsDir(): string {
-  return process.env.AGENTPRESS_IMPORTS_DIR ?? join(dirname(mediaDir()), "imports");
+  return process.env.WOVE_IMPORTS_DIR ?? join(dirname(mediaDir()), "imports");
 }
 
 const memory = new Map<string, ImportJob>();

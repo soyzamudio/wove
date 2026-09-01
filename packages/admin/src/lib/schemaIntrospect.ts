@@ -3,7 +3,7 @@
  * form can render. Pure and DOM-free so it can be unit tested.
  *
  * We introspect the sdk schemas rather than hand-writing a form per block type:
- * add a prop in `@agentpress/sdk` and the builder grows an editor for it.
+ * add a prop in `@wove/sdk` and the builder grows an editor for it.
  */
 import { z } from "zod";
 

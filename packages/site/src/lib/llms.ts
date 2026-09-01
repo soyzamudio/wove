@@ -1,4 +1,4 @@
-import type { Settings } from "@agentpress/sdk";
+import type { Settings } from "@wove/sdk";
 
 export interface LlmsEntry {
   slug: string;

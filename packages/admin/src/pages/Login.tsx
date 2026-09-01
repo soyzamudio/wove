@@ -41,7 +41,7 @@ export function Login() {
   }
 
   return (
-    <div className="ap-auth-hero flex min-h-screen items-center justify-center p-4">
+    <div className="wv-auth-hero flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-5 flex justify-center text-white">
           <Logo />
@@ -52,7 +52,7 @@ export function Login() {
         >
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Log in</h1>
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Sign in to your agentpress site.</p>
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Sign in to your Wove site.</p>
           </div>
           {error && <ErrorBanner message={needsSetup ? `${error} — no admin account may exist yet.` : error} />}
           {needsSetup && (

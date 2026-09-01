@@ -77,7 +77,7 @@ describe("post tools", () => {
   });
 
   test("settings merge stored values over SDK defaults", async () => {
-    expect(unwrap(await h.call(ADMIN, "settings.get", {})).siteTitle).toBe("My agentpress site");
+    expect(unwrap(await h.call(ADMIN, "settings.get", {})).siteTitle).toBe("My Wove site");
     const updated = unwrap(await h.call(ADMIN, "settings.update", { siteTitle: "Custom" }));
     expect(updated.siteTitle).toBe("Custom");
     expect(updated.postsPerPage).toBe(10); // default preserved

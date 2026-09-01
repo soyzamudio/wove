@@ -76,7 +76,7 @@ describe("design", () => {
   });
 
   test("design does not leak into settings, and the public endpoint serves it", async () => {
-    expect(unwrap(await h.call(ADMIN, "settings.get", {})).siteTitle).toBe("My agentpress site");
+    expect(unwrap(await h.call(ADMIN, "settings.get", {})).siteTitle).toBe("My Wove site");
     const res = await req("/api/public/design");
     expect(res.status).toBe(200);
     expect((await res.json()).colors.accent).toBe("#ff0000");

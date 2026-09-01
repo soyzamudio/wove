@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Post } from "@agentpress/sdk";
+import type { Post } from "@wove/sdk";
 import { resolveSeo, resolveUrl } from "./seo";
 
 const API_URL = "http://localhost:4000";

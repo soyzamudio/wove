@@ -1,11 +1,11 @@
 ---
 import "./Prose.css";
-import "@agentpress/blocks/blocks.css";
+import "@wove/blocks/blocks.css";
 import { API_URL } from "../../lib/env";
 import { getDesign, getMenus } from "../../lib/api";
 import { resolveMenuItems } from "../../lib/menu";
-import { FontMeta, designToCssVars } from "@agentpress/sdk";
-import type { Settings } from "@agentpress/sdk";
+import { FontMeta, designToCssVars } from "@wove/sdk";
+import type { Settings } from "@wove/sdk";
 import MenuNav from "./MenuNav.astro";
 
 interface Props {
@@ -55,7 +55,7 @@ const query = new URL(Astro.url).searchParams.get("q") ?? "";
     <link rel="canonical" href={canonicalUrl} />
     <link rel="alternate" type="application/feed+json" title={`${settings.siteTitle} Feed`} href={`${siteUrl}/feed.json`} />
     <link rel="alternate" type="application/rss+xml" title={`${settings.siteTitle} RSS`} href={`${siteUrl}/rss.xml`} />
-    <meta name="agentpress-api" content={API_URL} />
+    <meta name="wove-api" content={API_URL} />
     {noindex && <meta name="robots" content="noindex" />}
 
     <meta property="og:type" content="website" />
@@ -76,7 +76,7 @@ const query = new URL(Astro.url).searchParams.get("q") ?? "";
         <link rel="stylesheet" href={fontsHref} />
       </>
     )}
-    <style set:html={`:root{${cssVarsText}}@media (prefers-color-scheme: dark){:root{--ap-bg:var(--ap-dark-bg);--ap-fg:var(--ap-dark-fg);}}`} />
+    <style set:html={`:root{${cssVarsText}}@media (prefers-color-scheme: dark){:root{--wv-bg:var(--wv-dark-bg);--wv-fg:var(--wv-dark-fg);}}`} />
     {design.customCss && <style set:html={design.customCss} />}
   </head>
   <body>

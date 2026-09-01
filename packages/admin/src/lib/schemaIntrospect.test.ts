@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BlockProps } from "@agentpress/sdk";
+import { BlockProps } from "@wove/sdk";
 import { describeKind, describeSchema, emptyValue, type FieldDesc } from "./schemaIntrospect";
 
 const kinds = (fields: FieldDesc[]) => Object.fromEntries(fields.map((f) => [f.name, f.kind.kind]));

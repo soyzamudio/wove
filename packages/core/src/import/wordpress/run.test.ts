@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import sharp from "sharp";
-import { ImportOptions, type Menu, type Post, type SiteExport } from "@agentpress/sdk";
+import { ImportOptions, type Menu, type Post, type SiteExport } from "@wove/sdk";
 import { ADMIN, makeHarness, unwrap, type Harness } from "../../test-helpers";
 import { emptyJob, listJobs, resetJobs } from "../jobs";
 import { newId } from "../../ids";
@@ -57,7 +57,8 @@ describe("runImport", () => {
   test("attaches terms and Yoast/RankMath SEO, and records WordPress provenance", async () => {
     await run();
     const post = (await bySlug("hello-world"))!;
-    expect(post.terms).toEqual([
+    const sortedTerms = [...post.terms].sort((a, b) => a.taxonomy.localeCompare(b.taxonomy));
+    expect(sortedTerms).toEqual([
       { taxonomy: "category", slug: "news", name: "News" },
       { taxonomy: "tag", slug: "release", name: "Release" },
     ]);

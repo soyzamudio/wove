@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { Block, ToolCatalog, ToolDescriptions, type Post } from "@agentpress/sdk";
+import { Block, ToolCatalog, ToolDescriptions, type Post } from "@wove/sdk";
 import { posts } from "../db/schema";
 import { defineTool, notFound, ToolError, type Ctx } from "./registry";
 import { postCreate } from "./content";

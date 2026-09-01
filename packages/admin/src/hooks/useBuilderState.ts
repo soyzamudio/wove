@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer } from "react";
-import type { BlocksDoc } from "@agentpress/sdk";
+import type { BlocksDoc } from "@wove/sdk";
 import {
   blockIndex,
   builderReducer,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Clock, FileText, Plus, RotateCcw, Search, Sparkles, Trash2 } from "lucide-react";
-import type { Post } from "@agentpress/sdk";
+import type { Post } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";

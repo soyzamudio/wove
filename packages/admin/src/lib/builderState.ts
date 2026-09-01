@@ -4,8 +4,8 @@
  * Kept DOM- and React-free so it can be unit tested directly: `useBuilderState`
  * (src/hooks/useBuilderState.ts) is a thin `useReducer` wrapper over this.
  */
-import type { BlocksDoc } from "@agentpress/sdk";
-import type { AnyBlock } from "@agentpress/blocks";
+import type { BlocksDoc } from "@wove/sdk";
+import type { AnyBlock } from "@wove/blocks";
 
 export type BuilderBlock = AnyBlock;
 
@@ -68,7 +68,7 @@ export function moveItem<T>(items: T[], from: number, to: number): T[] {
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-/** Short URL-safe id. Mirrors `newId` in @agentpress/blocks (duplicated so this file stays pure). */
+/** Short URL-safe id. Mirrors `newId` in @wove/blocks (duplicated so this file stays pure). */
 export function builderId(size = 12): string {
   let out = "";
   if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {

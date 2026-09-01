@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
-import { BlockProps, type BlockType, type Media } from "@agentpress/sdk";
+import { BlockProps, type BlockType, type Media } from "@wove/sdk";
 import { describeSchema, emptyValue, type FieldDesc, type FieldKind } from "../lib/schemaIntrospect";
 import { MediaPicker } from "./MediaPicker";
 import { IconButton, Input, Label, Select, Textarea, cx } from "./ui";

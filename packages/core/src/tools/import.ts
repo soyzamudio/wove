@@ -1,4 +1,4 @@
-import { ImportOptions, ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { ImportOptions, ToolCatalog, ToolDescriptions } from "@wove/sdk";
 import { getJob, listJobs, MAX_LISTED_JOBS } from "../import/jobs";
 import { startImport } from "../import/wordpress/run";
 import { badRequest, defineTool, notFound } from "./registry";
