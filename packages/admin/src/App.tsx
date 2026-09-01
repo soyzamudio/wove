@@ -12,6 +12,7 @@ import { Audit } from "./pages/Audit";
 import { Settings } from "./pages/Settings";
 import { Menus } from "./pages/Menus";
 import { Tools } from "./pages/Tools";
+import { ImportExport } from "./pages/ImportExport";
 
 export function App() {
   return (
@@ -39,6 +40,7 @@ export function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/:tab" element={<Settings />} />
         <Route path="/tools" element={<Tools />} />
+        <Route path="/import" element={<ImportExport />} />
       </Route>
     </Routes>
   );

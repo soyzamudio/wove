@@ -128,6 +128,54 @@ export function createApp(deps: AppDeps) {
   });
 
 
+  // ------------------------------------------------------------ import / export
+  /**
+   * Multipart counterpart of `import.wordpress`, for WXR files too big to send as JSON
+   * base64 from the admin. Same actor, scopes and audit row as the tool.
+   */
+  app.post("/api/import/wordpress", async (c) => {
+    const { actor } = resolveActor(db, c.req.raw);
+    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    let form: FormData;
+    try {
+      form = await c.req.formData();
+    } catch {
+      return c.json(err("validation_error", "Expected a multipart/form-data body with a `file` field"), 400);
+    }
+    const file = form.get("file");
+    if (!(file instanceof File)) return c.json(err("validation_error", "Missing `file` field"), 400);
+    const rawOptions = form.get("options");
+    let options: unknown = {};
+    if (typeof rawOptions === "string" && rawOptions.trim()) {
+      try {
+        options = JSON.parse(rawOptions);
+      } catch {
+        return c.json(err("validation_error", "`options` must be a JSON object"), 400);
+      }
+    }
+    const xml = await file.text();
+    const result = await dispatch(
+      "import.wordpress",
+      { xml, encoding: "utf8", options },
+      { actor, channel, db, hooks },
+      registry,
+    );
+    if (!result.ok) return c.json(result.error, result.status as 400);
+    return c.json(result.data as object);
+  });
+
+  /** The whole site as a downloadable JSON file. Same scopes as `export.site`. */
+  app.get("/api/export/site.json", async (c) => {
+    const { actor } = resolveActor(db, c.req.raw);
+    const channel: Channel = c.req.header("x-ap-channel") === "ui" ? "ui" : "rest";
+    const result = await dispatch("export.site", {}, { actor, channel, db, hooks }, registry);
+    if (!result.ok) return c.json(result.error, result.status as 400);
+    const stamp = new Date().toISOString().slice(0, 10);
+    c.header("content-disposition", `attachment; filename="agentpress-export-${stamp}.json"`);
+    c.header("content-type", "application/json; charset=utf-8");
+    return c.body(JSON.stringify(result.data));
+  });
+
   // ------------------------------------------------------------ AI streaming
   const AiStreamInput = z.discriminatedUnion("kind", [
     z.object({

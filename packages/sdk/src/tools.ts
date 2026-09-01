@@ -57,6 +57,11 @@ export const ToolCatalog = {
   "ai.generatePage": { input: z.object({ prompt: z.string().min(1), title: z.string().optional(), save: z.boolean().default(false).describe("when true, creates a draft page and returns it in `post`") }), output: z.object({ title: z.string(), doc: S.BlocksDoc, post: S.Post.nullable(), usage: S.AiUsage }), scopes: ["ai:use"] },
   "ai.generateBlock": { input: z.object({ prompt: z.string().min(1), type: S.BlockType.optional().describe("force a block type; otherwise the model picks"), postId: S.Id.optional().describe("page for context") }), output: z.object({ block: S.Block, usage: S.AiUsage }), scopes: ["ai:use"] },
   "ai.editBlock":    { input: z.object({ block: S.Block, instruction: z.string().min(1), postId: S.Id.optional() }), output: z.object({ block: S.Block, usage: S.AiUsage }), scopes: ["ai:use"] },
+  // import / export
+  "import.wordpress": { input: z.object({ xml: z.string().min(1).describe("WXR file contents (raw XML, or base64 when `encoding` is 'base64')"), encoding: z.enum(["utf8", "base64"]).default("utf8"), options: S.ImportOptions.default({}) }), output: S.ImportJob, scopes: ["content:write", "media:write", "settings:write"] },
+  "import.status":    { input: z.object({ id: S.Id }), output: S.ImportJob, scopes: ["content:read"] },
+  "import.list":      { input: z.object({}), output: z.array(S.ImportJob), scopes: ["content:read"] },
+  "export.site":      { input: z.object({}), output: S.SiteExport, scopes: ["content:read", "settings:read", "media:read"] },
   // site
   "site.info":    { input: z.object({}), output: z.object({ settings: S.Settings, counts: z.object({ posts: z.number(), pages: z.number(), media: z.number() }), version: z.string() }), scopes: ["settings:read"] },
 } as const satisfies Record<string, { input: z.ZodTypeAny; output: z.ZodTypeAny; scopes: readonly Sc.Scope[] }>;
@@ -102,6 +107,10 @@ export const ToolDescriptions: Record<ToolName, string> = {
   "ai.rewrite": "Rewrite the given text according to an instruction. Returns only the rewritten text.",
   "ai.draftPost": "Generate a complete post (title, excerpt, Markdown body) from a prompt and save it as a draft.",
   "ai.usage": "AI token usage log with totals. Core records tokens only; pricing is applied by the hosting layer.",
+  "import.wordpress": "Import a WordPress WXR export (posts, pages, media, tags/categories, menus, featured images, SEO). Runs as a background job; poll import.status.",
+  "import.status": "Progress and report of an import job.",
+  "import.list": "Recent import jobs.",
+  "export.site": "Export the whole site (settings, design, menus, terms, media list, posts) as JSON.",
   "block.catalog": "List the page block types with descriptions and JSON schemas for their props.",
   "block.validate": "Validate a blocks document; returns it normalized (defaults filled, ids assigned).",
   "ai.generatePage": "Generate a complete page (title + blocks) from a prompt; optionally save it as a draft page.",

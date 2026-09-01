@@ -222,3 +222,43 @@ export function designToCssVars(d: Design): Record<string, string> {
     "--ap-radius": `${d.radius}px`,
   };
 }
+
+// ---------- import / export ----------
+export const ImportOptions = z.object({
+  downloadMedia: z.boolean().default(true).describe("fetch attachments from the old site and store them in the media library"),
+  overwrite: z.boolean().default(false).describe("re-import items that already exist (matched by WordPress id); default skips them"),
+  dryRun: z.boolean().default(false).describe("parse and report without writing anything"),
+  pagesAsBlocks: z.boolean().default(true).describe("import pages as block pages (one Markdown block) so they open in the builder"),
+});
+export type ImportOptions = z.infer<typeof ImportOptions>;
+
+export const ImportCounts = z.object({
+  posts: z.number().int().default(0), pages: z.number().int().default(0), media: z.number().int().default(0),
+  terms: z.number().int().default(0), menus: z.number().int().default(0), skipped: z.number().int().default(0), failed: z.number().int().default(0),
+});
+export const ImportWarning = z.object({ item: z.string().nullable(), message: z.string() });
+export const ImportJob = z.object({
+  id: Id,
+  status: z.enum(["queued", "running", "done", "failed"]),
+  phase: z.string().describe("human-readable current step"),
+  progress: z.object({ done: z.number().int(), total: z.number().int() }),
+  counts: ImportCounts,
+  warnings: z.array(ImportWarning),
+  error: z.string().nullable(),
+  startedAt: ISODate,
+  finishedAt: ISODate.nullable(),
+  source: z.object({ siteTitle: z.string().nullable(), siteUrl: z.string().nullable(), items: z.number().int() }),
+});
+export type ImportJob = z.infer<typeof ImportJob>;
+
+export const SiteExport = z.object({
+  version: z.literal(1),
+  exportedAt: ISODate,
+  settings: Settings,
+  design: Design,
+  menus: z.array(Menu),
+  terms: z.array(Term),
+  media: z.array(Media),
+  posts: z.array(Post),
+});
+export type SiteExport = z.infer<typeof SiteExport>;

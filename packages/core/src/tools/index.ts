@@ -11,9 +11,11 @@ import { blockTools } from "./blocks";
 import { aiPageTools } from "./ai-pages";
 import { menuTools } from "./menus";
 import { designTools } from "./design";
+import { importTools } from "./import";
+import { exportTools } from "./export";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */
@@ -29,3 +31,5 @@ export { mediaDir } from "./media";
 export { readSettings } from "./shared";
 export { readMenus, readMenu } from "./menus";
 export { readDesign, writeDesign } from "./design";
+export { buildSiteExport } from "./export";
+export { decodeWxr, MAX_WXR_BYTES } from "./import";

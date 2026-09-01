@@ -1,4 +1,4 @@
-import { createClient, AgentpressError, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@agentpress/sdk";
+import { createClient, AgentpressError, type ImportJob, type ImportOptions, type ToolInput, type ToolName, type ToolOutput, type User, type Actor } from "@agentpress/sdk";
 import { useMutation, useQuery, useQueryClient, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
 
 export const API_URL: string = (import.meta as any).env?.VITE_API_URL ?? "http://localhost:4000";
@@ -77,6 +77,32 @@ export async function fetchToolCatalog(): Promise<ToolCatalogEntry[]> {
   // core wraps the list: { tools: [...] }
   const body = (await res.json()) as { tools: ToolCatalogEntry[] };
   return body.tools;
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/import/wordpress — multipart upload, outside the sdk ToolCatalog
+// since it takes a file rather than a JSON body.
+// ---------------------------------------------------------------------------
+
+export async function importWordpress(file: File, options: ImportOptions): Promise<ImportJob> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("options", JSON.stringify(options));
+  const res = await channelFetch(`${API_URL}/api/import/wordpress`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const data = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok) {
+    throw new AgentpressError(res.status, data.code ?? "error", data.message ?? res.statusText, data.details);
+  }
+  return data as ImportJob;
+}
+
+/** URL for `GET /api/export/site.json` — trigger with window.open/<a href>, not fetch, so the session cookie rides along and the browser saves the download. */
+export function exportSiteUrl(): string {
+  return `${API_URL}/api/export/site.json`;
 }
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { media } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import { processImage } from "../images";
 import { storage } from "../storage";
-import { defineTool, badRequest, notFound } from "./registry";
+import { defineTool, badRequest, notFound, type Ctx } from "./registry";
 import { decodeCursor, encodeCursor } from "./shared";
 
 export { mediaDir } from "../storage";
@@ -61,6 +61,43 @@ export const mediaList = defineTool({
   },
 });
 
+export interface StoreMediaInput {
+  bytes: Uint8Array;
+  filename: string;
+  mime: string;
+  alt?: string | null;
+}
+
+/**
+ * The one path media takes into the library: store the original, render webp variants,
+ * insert the row, fire `media.afterUpload`. Shared by `media.upload` and the WordPress
+ * importer so both produce identical rows.
+ */
+export async function storeMedia(ctx: Ctx, input: StoreMediaInput) {
+  const store = storage();
+  const id = newId();
+  const key = `${id}-${safeFilename(input.filename)}`;
+  const { url } = await store.put(key, input.bytes, input.mime);
+
+  const { width, height, variants: renditions } = await processImage(input.bytes, input.mime);
+  const variants: Array<{ width: number; url: string; format?: string }> = [];
+  for (const r of renditions) {
+    const vKey = variantKey(key, r.width);
+    const put = await store.put(vKey, r.bytes, "image/webp");
+    variants.push({ width: r.width, url: put.url, format: "webp" });
+  }
+
+  const row = {
+    id, path: key, url, mime: input.mime, size: input.bytes.byteLength,
+    alt: input.alt ?? null, width, height, variants,
+    createdAt: nowIso(),
+  };
+  ctx.db.insert(media).values(row).run();
+  const item = toMedia(row as typeof media.$inferSelect);
+  await ctx.hooks.emit("media.afterUpload", { media: item, ctx: { actor: ctx.actor, channel: ctx.channel } });
+  return item;
+}
+
 export const mediaUpload = defineTool({
   name: "media.upload",
   description: ToolDescriptions["media.upload"],
@@ -83,28 +120,7 @@ export const mediaUpload = defineTool({
       throw badRequest(`File exceeds the ${Math.round(cap / (1024 * 1024))} MB upload limit`);
     }
 
-    const store = storage();
-    const id = newId();
-    const key = `${id}-${safeFilename(input.filename)}`;
-    const { url } = await store.put(key, bytes, input.mime);
-
-    const { width, height, variants: renditions } = await processImage(bytes, input.mime);
-    const variants: Array<{ width: number; url: string; format?: string }> = [];
-    for (const r of renditions) {
-      const vKey = variantKey(key, r.width);
-      const put = await store.put(vKey, r.bytes, "image/webp");
-      variants.push({ width: r.width, url: put.url, format: "webp" });
-    }
-
-    const row = {
-      id, path: key, url, mime: input.mime, size: bytes.byteLength,
-      alt: input.alt ?? null, width, height, variants,
-      createdAt: nowIso(),
-    };
-    ctx.db.insert(media).values(row).run();
-    const item = toMedia(row as typeof media.$inferSelect);
-    await ctx.hooks.emit("media.afterUpload", { media: item, ctx: { actor: ctx.actor, channel: ctx.channel } });
-    return item;
+    return storeMedia(ctx, { bytes, filename: input.filename, mime: input.mime, alt: input.alt ?? null });
   },
 });
 

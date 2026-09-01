@@ -1,4 +1,5 @@
 import {
+  ArrowDownToLine,
   Bot,
   ExternalLink,
   FileText,
@@ -54,6 +55,9 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "System",
-    items: [{ to: "/settings", label: "Settings", icon: SettingsIcon }],
+    items: [
+      { to: "/settings", label: "Settings", icon: SettingsIcon },
+      { to: "/import", label: "Import / Export", icon: ArrowDownToLine },
+    ],
   },
 ];
