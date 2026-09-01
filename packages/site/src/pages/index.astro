@@ -3,6 +3,7 @@ import Layout from "@theme/Layout.astro";
 import PostCard from "@theme/PostCard.astro";
 import { BlockRenderer } from "@wove/blocks";
 import { getPostBySlug, getSettings, listPosts } from "../lib/api";
+import { collectCollectionData } from "../lib/collections";
 import { renderMarkdown } from "../lib/markdown";
 import { resolveSeo, resolveUrl } from "../lib/seo";
 import { PUBLIC_URL } from "../lib/env";
@@ -22,8 +23,10 @@ let items: Awaited<ReturnType<typeof listPosts>>["items"] = [];
 let nextCursor: string | null = null;
 let cursor: string | undefined;
 let html = "";
+let collections: Awaited<ReturnType<typeof collectCollectionData>>;
 
 if (home) {
+  if (isBlocks) collections = await collectCollectionData(home.blocks);
   if (!isBlocks) {
     html = renderMarkdown(home.content, PUBLIC_URL);
   }
@@ -46,7 +49,7 @@ if (home) {
 >
   {home ? (
     isBlocks ? (
-      <BlockRenderer doc={home.blocks!} ctx={{ mediaBase: PUBLIC_URL }} />
+      <BlockRenderer doc={home.blocks!} ctx={{ mediaBase: PUBLIC_URL, collections }} />
     ) : (
       <article>
         {featuredImageUrl && (

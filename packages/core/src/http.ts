@@ -29,6 +29,7 @@ import { newId, nowIso, sha256 } from "./ids";
 import { brandFor, passwordResetEmail, sendEmailQuietly } from "./email";
 import { resetPasswordUrl } from "./tools/users";
 import { publicRedirectRoutes } from "./tools/redirects";
+import { publicCollectionRoutes } from "./tools/collections";
 import { buildOpenApi, jsonSchemaFor } from "./openapi";
 import { createMcpHandler } from "./mcp";
 import { VERSION } from "./version";
@@ -620,6 +621,9 @@ export function createApp(deps: AppDeps) {
 
   // ------------------------------------------------------------ redirects & 404s (public)
   app.route("/api/public", publicRedirectRoutes(db));
+
+  // ------------------------------------------------------------ collections (public)
+  app.route("/api/public", publicCollectionRoutes(db));
 
   // ------------------------------------------------------------ MCP
   const mcp = createMcpHandler({

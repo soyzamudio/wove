@@ -3,7 +3,7 @@
 import { mkdirSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { openDb, defaultDbPath } from "../src/db";
-import { media, posts, users, agents } from "../src/db/schema";
+import { media, posts, users, agents, collections, collectionEntries } from "../src/db/schema";
 import { hooks } from "../src/hooks";
 import { registerCoreTools, registry, dispatch } from "../src/tools";
 import { mediaDir } from "../src/tools/media";
@@ -218,5 +218,38 @@ if (firstImage) {
     console.log(`  featured ${firstImage.url} -> ${target.slug}`);
   }
 }
+// ---- collections: an example custom content type, public so the site can render it
+if (!db.select().from(collections).where(eq(collections.slug, "team")).get()) {
+  await call("collection.create", {
+    slug: "team",
+    name: "Team member",
+    namePlural: "Team",
+    icon: "users",
+    public: true,
+    titleFieldKey: "name",
+    fields: [
+      { key: "name", label: "Name", type: "text", required: true },
+      { key: "role", label: "Role", type: "text" },
+      { key: "bio", label: "Bio", type: "markdown" },
+      { key: "photo", label: "Photo", type: "image" },
+      { key: "joined", label: "Joined", type: "date" },
+    ],
+  });
+  console.log("  collection team (public)");
+}
+const TEAM_ENTRIES = [
+  { name: "Ada Admin", role: "Founder", bio: "Runs the shop and writes the release notes.", joined: "2023-01-09" },
+  { name: "Edie Editor", role: "Editor", bio: "Keeps the copy honest and the calendar full.", joined: "2023-06-01" },
+  { name: "Wren Writer", role: "Writer", bio: "Drafts most of what you read here.", joined: "2024-02-19" },
+];
+let entriesCreated = 0;
+const existingTeam = db.select().from(collectionEntries).where(eq(collectionEntries.collection, "team")).all();
+for (const data of TEAM_ENTRIES) {
+  if (existingTeam.some((e) => (e.data as any)?.name === data.name)) continue;
+  await call("entry.create", { collection: "team", data, status: "published" });
+  entriesCreated += 1;
+}
+console.log(`  entries ${entriesCreated} team entr${entriesCreated === 1 ? "y" : "ies"} created`);
+
 console.log(`  db      ${defaultDbPath()}`);
 console.log("  done.");

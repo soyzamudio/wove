@@ -1,11 +1,11 @@
 export { BlockRenderer, BlockView } from "./renderer";
 export { resolveUrl } from "./context";
-export type { RenderContext } from "./context";
+export type { RenderContext, CollectionData } from "./context";
 export { renderMarkdown } from "./markdown";
 export { resolveIcon, Icon } from "./icon";
 export { imgAttrs, SIZES } from "./image-attrs";
 export { BLOCK_TYPES, blockDefaults, newBlock, newId } from "./defaults";
-export { sampleDoc } from "./fixtures";
+export { sampleDoc, sampleCollections } from "./fixtures";
 export { BlockMeta } from "@wove/sdk";
 export type { BlocksDoc, BlockType, BlockOf } from "@wove/sdk";
 export type { AnyBlock, AnyBlock as Block, PropsOf } from "./types";

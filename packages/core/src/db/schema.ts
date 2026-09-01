@@ -246,3 +246,31 @@ export const notFoundLog = sqliteTable("not_found_log", {
   lastSeen: text("last_seen").notNull(),
   referrer: text("referrer"),
 });
+
+export const collections = sqliteTable("collections", {
+  slug: text("slug").primaryKey(),
+  name: text("name").notNull(),
+  namePlural: text("name_plural").notNull(),
+  icon: text("icon").notNull().default("database"),
+  /** CollectionField[] JSON. */
+  fields: text("fields", { mode: "json" }).$type<unknown[]>().notNull().default([]),
+  titleFieldKey: text("title_field_key").notNull(),
+  public: integer("public", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const collectionEntries = sqliteTable(
+  "collection_entries",
+  {
+    id: text("id").primaryKey(),
+    collection: text("collection").notNull(),
+    status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
+    /** Field values keyed by field key. */
+    data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    authorId: text("author_id"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({ byCollection: index("collection_entries_collection_idx").on(t.collection, t.status) }),
+);

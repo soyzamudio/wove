@@ -28,10 +28,11 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { BlockMeta, newBlock, type BlocksDoc } from "@wove/blocks";
+import { BlockMeta, newBlock, type BlocksDoc, type RenderContext } from "@wove/blocks";
 import { designToCssVars, type ImageRef, type Post } from "@wove/sdk";
-import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
+import { API_URL, useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { useBuilderState } from "../hooks/useBuilderState";
+import { useCollectionsCtx } from "../hooks/useCollectionsCtx";
 import { useDraftRecovery } from "../hooks/useDraftRecovery";
 import { emptyBuilderDoc, type BuilderBlock } from "../lib/builderState";
 import { descendantIds, indentLabel, previewPath, treeOrder } from "../lib/hierarchy";
@@ -502,6 +503,19 @@ export function PageBuilder() {
     ? (designToCssVars(designQuery.data) as unknown as CSSProperties)
     : undefined;
   const sortableIds = useMemo(() => builder.blocks.map((b) => b.id), [builder.blocks]);
+
+  // Collection blocks need real entries to preview; fetch the definition + published
+  // entries for every collection referenced on this page and hand them to the renderer.
+  const collectionSlugs = useMemo(
+    () =>
+      builder.blocks
+        .filter((b) => b.type === "collection")
+        .map((b) => String((b.props as { collection?: unknown } | undefined)?.collection ?? ""))
+        .filter(Boolean),
+    [builder.blocks]
+  );
+  const collections = useCollectionsCtx(collectionSlugs);
+  const canvasCtx = useMemo<RenderContext>(() => ({ mediaBase: API_URL, collections }), [collections]);
 
   if (!isCreate && postQuery.isLoading) return <Spinner />;
   if (!isCreate && postQuery.isError) return <ErrorBanner message={errorMessage(postQuery.error)} />;
@@ -991,6 +1005,7 @@ export function PageBuilder() {
                           onDuplicate={() => builder.duplicate(block.id)}
                           onRemove={() => builder.remove(block.id)}
                           onReplace={(next) => builder.replaceBlock(block.id, next)}
+                          ctx={canvasCtx}
                         />
                         {index < builder.blocks.length - 1 && <AddBlockGap onClick={() => setPickerAt(index + 1)} />}
                       </div>

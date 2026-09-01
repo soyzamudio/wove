@@ -14,7 +14,7 @@ Snapshot: 2026-09-01 (updated end of day). Legend — ✅ have · 🟡 partial �
 | Draft / Published / Scheduled | ✅ | In-process scheduler flips due posts (audited as `system`) |
 | Pending review workflow | ✅ | `pending` status; contributors submit, editors approve; notifies by email |
 | Categories & tags | ✅ | Custom taxonomies ❌ |
-| Custom post types + custom fields (CPT/ACF) | ❌ | The "WordPress as app platform" backbone — see §3 |
+| Custom post types + custom fields (CPT/ACF) | ✅ | Collections: admin-defined types, validated entries, auto tools/MCP/UI + render block |
 | Featured image | ✅ | Editor rail + site output with srcset |
 | Excerpts | ✅ | Derived for block pages |
 | Permalinks | ✅ | Page hierarchy (parent, depth ≤3); post pattern `/:slug` or `/blog/:slug` |
@@ -106,7 +106,7 @@ Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identit
 4. ~~Page hierarchy + permalinks~~ ✅ parent pages (depth ≤3, strict path resolution), `/:slug` vs `/blog/:slug` post permalinks.
 
 ### Phase C — the platform play
-5. **Collections** — schema-defined custom content types (events, products, team…) that automatically get tools/MCP/OpenAPI/list views and a block to render them (the CPT+ACF replacement).
+5. ~~Collections~~ ✅ shipped 2026-09-01 — schema-defined content types built in the admin (9 field types), runtime-validated entries, generic `collection.*`/`entry.*` tools over REST+MCP with JSON schemas for discovery, auto-generated admin list/form views + dynamic nav, public API, and a `collection` block (grid/list, zero-JS SSR).
 6. Plugin maturity: filters, admin UI extension points, install from admin, a registry.
 7. **Postgres driver**; multiple code themes; header/footer block areas; container queries in blocks.css (true mobile preview).
 

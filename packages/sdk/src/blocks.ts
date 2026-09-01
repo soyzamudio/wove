@@ -62,6 +62,13 @@ export const BlockProps = {
   stats: z.object({ headline: z.string().optional(), items: z.array(z.object({ value: z.string(), label: z.string() })).min(1).max(6) }),
   columns: z.object({ columns: z.array(z.object({ markdown: Markdown })).min(2).max(4) }),
   html: z.object({ html: z.string().describe("trusted raw HTML (admin-authored)") }),
+  collection: z.object({
+    collection: z.string().min(1).describe("collection slug"),
+    headline: z.string().optional(),
+    layout: z.enum(["grid", "list"]).default("grid"),
+    columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
+    limit: z.number().int().min(1).max(24).default(6),
+  }),
 } as const;
 
 export type BlockType = keyof typeof BlockProps;
@@ -72,11 +79,12 @@ export const BlockSchemas = {
   hero: variant("hero"), features: variant("features"), markdown: variant("markdown"), image: variant("image"),
   gallery: variant("gallery"), cta: variant("cta"), testimonials: variant("testimonials"), logos: variant("logos"),
   faq: variant("faq"), stats: variant("stats"), columns: variant("columns"), html: variant("html"),
+  collection: variant("collection"),
 } as const;
 export const Block = z.discriminatedUnion("type", [
   BlockSchemas.hero, BlockSchemas.features, BlockSchemas.markdown, BlockSchemas.image, BlockSchemas.gallery,
   BlockSchemas.cta, BlockSchemas.testimonials, BlockSchemas.logos, BlockSchemas.faq, BlockSchemas.stats,
-  BlockSchemas.columns, BlockSchemas.html,
+  BlockSchemas.columns, BlockSchemas.html, BlockSchemas.collection,
 ]);
 /** Narrowable union: `switch (block.type)` refines `block.props`. */
 export type Block = { [T in BlockType]: { id: string; type: T; props: z.infer<(typeof BlockProps)[T]> } }[BlockType];
@@ -99,6 +107,7 @@ export const BlockMeta: Record<BlockType, { name: string; description: string }>
   stats: { name: "Stats", description: "Row of big numbers with labels." },
   columns: { name: "Columns", description: "2–4 columns of Markdown text." },
   html: { name: "HTML", description: "Raw HTML embed (trusted)." },
+  collection: { name: "Collection", description: "Entries from a collection (events, products, team…) as a grid or list." },
 };
 
 export const emptyDoc = (): BlocksDoc => ({ version: 1, blocks: [] });

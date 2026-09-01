@@ -18,9 +18,10 @@ import { exportTools } from "./export";
 import { chatTools } from "./chat";
 import { templateTools } from "./templates";
 import { redirectTools } from "./redirects";
+import { collectionTools } from "./collections";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...userTools, ...emailTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools, ...templateTools, ...redirectTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...userTools, ...emailTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools, ...templateTools, ...redirectTools, ...collectionTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */
@@ -40,3 +41,4 @@ export { buildSiteExport } from "./export";
 export { decodeWxr, MAX_WXR_BYTES } from "./import";
 export { BUILTIN_TEMPLATES } from "../templates";
 export { publicRedirectRoutes, resolveRedirect, record404, shouldReport404 } from "./redirects";
+export { publicCollectionRoutes } from "./collections";

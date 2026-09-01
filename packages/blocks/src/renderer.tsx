@@ -13,6 +13,7 @@ import { Faq } from "./blocks/faq";
 import { Stats } from "./blocks/stats";
 import { Columns } from "./blocks/columns";
 import { HtmlBlock } from "./blocks/html";
+import { CollectionBlock } from "./blocks/collection";
 
 /** Render a single block's inner content (no <section> wrapper). */
 export function BlockView({ block: input, ctx = {} }: { block: SdkBlock | AnyBlock; ctx?: RenderContext }) {
@@ -42,6 +43,8 @@ export function BlockView({ block: input, ctx = {} }: { block: SdkBlock | AnyBlo
       return <Columns props={block.props} ctx={ctx} />;
     case "html":
       return <HtmlBlock props={block.props} ctx={ctx} />;
+    case "collection":
+      return <CollectionBlock props={block.props} ctx={ctx} />;
     default:
       return null;
   }

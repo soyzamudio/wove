@@ -1,9 +1,22 @@
+import type { Collection, CollectionEntry } from "@wove/sdk";
+
+/** A collection's definition plus the entries to render, prefetched by the host. */
+export type CollectionData = {
+  collection: Pick<Collection, "slug" | "name" | "namePlural" | "fields" | "titleFieldKey">;
+  entries: CollectionEntry[];
+};
+
 /** Rendering context passed down from the host (admin canvas or Astro site). */
 export type RenderContext = {
   /** Prefix applied to root-relative `/media/...` urls (e.g. the API origin). */
   mediaBase?: string;
   /** Prefix applied to other root-relative links (e.g. a site sub-path). */
   linkBase?: string;
+  /**
+   * Collection data keyed by collection slug, prefetched by the host so the
+   * renderer stays synchronous. Collections missing here render a placeholder.
+   */
+  collections?: Record<string, CollectionData>;
 };
 
 const stripTrailing = (s: string) => s.replace(/\/+$/, "");

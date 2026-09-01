@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BlockProps, BlocksDoc, type BlockType } from "@wove/sdk";
-import { BLOCK_TYPES, blockDefaults, newBlock, resolveUrl, renderMarkdown, BlockRenderer, BlockView, imgAttrs, SIZES } from "./index";
-import { sampleDoc } from "./fixtures";
+import { BLOCK_TYPES, blockDefaults, newBlock, resolveUrl, renderMarkdown, BlockRenderer, BlockView, imgAttrs, SIZES, type PropsOf } from "./index";
+import { sampleDoc, sampleCollections } from "./fixtures";
 import { resolveIcon } from "./icon";
 import { Icon } from "./index";
 
@@ -199,5 +199,71 @@ describe("responsive images", () => {
     );
     expect(html).toContain('src="/media/m2-plain.png"');
     expect(html).not.toMatch(/srcset/i);
+  });
+});
+
+describe("collection block", () => {
+  const block = (props: Partial<PropsOf<"collection">> = {}) =>
+    ({ id: "c", type: "collection", props: { ...blockDefaults("collection"), ...props } }) as const;
+
+  test("renders a placeholder when the host did not prefetch the collection", () => {
+    const html = renderToStaticMarkup(<BlockView block={block()} ctx={{}} />);
+    expect(html).toContain("wv-collection--empty");
+    expect(html).toContain("team");
+    expect(html).toContain("entries appear on the published site");
+  });
+
+  test("grid layout renders cards for every entry, up to limit", () => {
+    const ctx = { collections: sampleCollections() };
+    const html = renderToStaticMarkup(<BlockView block={block()} ctx={ctx} />);
+    expect(html).toContain("wv-collection--grid");
+    expect(html).toContain("wv-grid wv-grid--3");
+    expect(html).toContain("Dana Whitfield");
+    expect(html).toContain("Priya Raman");
+    expect(html).toContain("Head of Product");
+    expect(html).toContain("wv-collection__body--clamp");
+
+    const limited = renderToStaticMarkup(<BlockView block={block({ limit: 2 })} ctx={ctx} />);
+    expect(limited).toContain("Marcus Lee");
+    expect(limited).not.toContain("Priya Raman");
+  });
+
+  test("list layout renders rows instead of a grid", () => {
+    const html = renderToStaticMarkup(
+      <BlockView block={block({ layout: "list" })} ctx={{ collections: sampleCollections() }} />,
+    );
+    expect(html).toContain("wv-collection--list");
+    expect(html).toContain("wv-collection__list");
+    expect(html).not.toContain("wv-grid--3");
+    expect(html).not.toContain("wv-collection__body--clamp");
+  });
+
+  test("renders images, markdown fields and formatted dates; skips empty values", () => {
+    const data = sampleCollections();
+    data.team!.collection.fields.push(
+      { key: "site", label: "Site", type: "url", required: false },
+      { key: "featured", label: "Featured", type: "boolean", required: false },
+      { key: "note", label: "Note", type: "text", required: false },
+    );
+    data.team!.entries[0]!.data = {
+      ...data.team!.entries[0]!.data,
+      photo: { url: "/media/dana.png", alt: "Dana", variants: [{ width: 480, url: "/media/dana.w480.webp" }] },
+      site: "https://example.com",
+      featured: true,
+      note: "   ",
+    };
+    data.team!.entries[1]!.data = { ...data.team!.entries[1]!.data, featured: false, role: "" };
+
+    const html = renderToStaticMarkup(<BlockView block={block()} ctx={{ collections: data, mediaBase: "https://cdn.test" }} />);
+    expect(html).toContain("https://cdn.test/media/dana.png");
+    expect(html).toContain("https://cdn.test/media/dana.w480.webp 480w");
+    expect(html).toContain(`sizes="${SIZES.collection}"`);
+    expect(html).toContain("<p>Dana keeps the roadmap honest"); // markdown rendered
+    expect(html).toContain("Jan 1, 2026"); // date formatted
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain("Featured"); // boolean true -> label
+    expect(html).not.toContain(">Editor<"); // Marcus' role was emptied
+    const bools = html.match(/wv-collection__field--bool/g) ?? [];
+    expect(bools.length).toBe(1); // false booleans are skipped
   });
 });

@@ -15,6 +15,7 @@ export const BLOCK_TYPES: BlockType[] = [
   "stats",
   "columns",
   "html",
+  "collection",
 ];
 
 const PLACEHOLDER = "/media/placeholder.svg";
@@ -112,6 +113,13 @@ const DEFAULTS: DefaultsMap = {
   },
   html: {
     html: '<div style="padding:2rem;text-align:center;border:1px dashed currentColor;border-radius:12px;opacity:.7">Paste your embed code here</div>',
+  },
+  collection: {
+    collection: "team",
+    headline: "Meet the team",
+    layout: "grid",
+    columns: 3,
+    limit: 6,
   },
 };
 

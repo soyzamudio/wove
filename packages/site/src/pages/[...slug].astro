@@ -2,6 +2,7 @@
 import Layout from "@theme/Layout.astro";
 import { BlockRenderer } from "@wove/blocks";
 import { getByPath, getSettings, report404, resolveRedirect } from "../lib/api";
+import { collectCollectionData } from "../lib/collections";
 import { renderMarkdown } from "../lib/markdown";
 import { resolveSeo, resolveUrl } from "../lib/seo";
 import { PUBLIC_URL } from "../lib/env";
@@ -25,6 +26,7 @@ if (!found) {
 
 const isBlocks = found && post!.format === "blocks" && Boolean(post!.blocks);
 const html = found && !isBlocks ? renderMarkdown(post!.content, PUBLIC_URL) : "";
+const collections = isBlocks ? await collectCollectionData(post!.blocks) : undefined;
 const dateLabel = post?.publishedAt
   ? new Date(post.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
   : null;
@@ -52,7 +54,7 @@ const featuredSrcset = featuredImage?.variants?.length
       <p><a href="/">Back home</a></p>
     </div>
   ) : isBlocks ? (
-    <BlockRenderer doc={post!.blocks!} ctx={{ mediaBase: PUBLIC_URL }} />
+    <BlockRenderer doc={post!.blocks!} ctx={{ mediaBase: PUBLIC_URL, collections }} />
   ) : (
     <article>
       {featuredImageUrl && (

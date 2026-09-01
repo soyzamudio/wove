@@ -1,8 +1,17 @@
-import type { Design, Menu, Post, Settings, Term } from "@wove/sdk";
+import type { Collection, CollectionEntry, Design, Menu, Post, Settings, Term } from "@wove/sdk";
 import { API_URL, MOCK } from "./env";
 import { cached } from "./cache";
 import { shouldReport404 } from "./redirects";
-import { mockAllContent, mockDesign, mockMenus, mockSearch, mockSettings, mockTerms } from "./mock-data";
+import {
+  mockAllContent,
+  mockCollectionEntries,
+  mockCollections,
+  mockDesign,
+  mockMenus,
+  mockSearch,
+  mockSettings,
+  mockTerms,
+} from "./mock-data";
 
 export interface ListPostsParams {
   type?: Post["type"];
@@ -108,6 +117,22 @@ export async function searchPosts(q: string, limit = 20): Promise<Post[]> {
   const qs = new URLSearchParams({ q, limit: String(limit) });
   const { items } = await getJson<{ items: Post[] }>(`/api/public/search?${qs.toString()}`);
   return items;
+}
+
+/** Public collection definitions (fields, title field). Public collections only. */
+export async function getPublicCollections(): Promise<Collection[]> {
+  if (MOCK) return mockCollections;
+  const body = await getJson<Collection[] | { items: Collection[] }>("/api/public/collections");
+  return Array.isArray(body) ? body : (body?.items ?? []);
+}
+
+/** Published entries of one public collection. */
+export async function getCollectionEntries(slug: string): Promise<CollectionEntry[]> {
+  if (MOCK) return mockCollectionEntries[slug] ?? [];
+  const { items } = await getJson<{ items: CollectionEntry[] }>(
+    `/api/public/collections/${encodeURIComponent(slug)}/entries`,
+  );
+  return items ?? [];
 }
 
 /** Every published post/page — used by /llms.txt, /llms-full.txt, /sitemap.xml. */

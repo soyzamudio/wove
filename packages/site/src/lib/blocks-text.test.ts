@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BlocksDoc } from "@wove/sdk";
+import { sampleCollections } from "@wove/blocks";
 import { blocksToMarkdown } from "./blocks-text";
 
 describe("blocksToMarkdown", () => {
@@ -185,5 +186,37 @@ describe("blocksToMarkdown", () => {
       ],
     };
     expect(blocksToMarkdown(doc)).toBe("Body text");
+  });
+
+  test("renders a collection block as a headline plus entry bullets when data is available", () => {
+    const doc: BlocksDoc = {
+      version: 1,
+      blocks: [
+        {
+          id: "15",
+          type: "collection",
+          props: { collection: "team", headline: "Meet the team", layout: "grid", columns: 3, limit: 2 },
+        },
+      ],
+    };
+    const out = blocksToMarkdown(doc, sampleCollections());
+    expect(out).toContain("## Meet the team");
+    expect(out).toContain("- **Dana Whitfield** — Head of Product");
+    expect(out).toContain("- **Marcus Lee** — Editor");
+    expect(out).not.toContain("Priya Raman"); // limit: 2
+  });
+
+  test("falls back to a note when no collection data was passed", () => {
+    const doc: BlocksDoc = {
+      version: 1,
+      blocks: [
+        {
+          id: "16",
+          type: "collection",
+          props: { collection: "events", layout: "list", columns: 3, limit: 6 },
+        },
+      ],
+    };
+    expect(blocksToMarkdown(doc)).toBe('_Entries from the "events" collection._');
   });
 });

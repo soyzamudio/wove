@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
 import { BlockProps, type BlockType, type Media } from "@wove/sdk";
 import { describeSchema, emptyValue, type FieldDesc, type FieldKind } from "../lib/schemaIntrospect";
+import { useToolQuery } from "../api";
 import { MediaPicker } from "./MediaPicker";
 import { RichMarkdownEditor } from "./RichMarkdownEditor";
 import { IconButton, Input, Label, Select, Textarea, cx } from "./ui";
@@ -96,6 +97,40 @@ function ButtonField({
         <option value="secondary">secondary</option>
       </Select>
     </div>
+  );
+}
+
+/**
+ * The `collection` block picks a collection by slug — a select beats a raw text
+ * input. Falls back to the plain input when the list can't be loaded (no
+ * permission, core offline) so the prop stays editable either way.
+ */
+function CollectionSelect({ value, onChange, id }: { value: string; onChange: (v: string) => void; id?: string }) {
+  const list = useToolQuery("collection.list", {}, { staleTime: 60_000, retry: false });
+
+  if (list.isError) {
+    return <Input id={id} value={value} placeholder="collection slug" onChange={(e) => onChange(e.target.value)} />;
+  }
+
+  const options = list.data ?? [];
+  return (
+    <>
+      <Select id={id} value={value} disabled={list.isLoading} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{list.isLoading ? "Loading…" : "Choose a collection…"}</option>
+        {/* Keep an unknown slug (e.g. a deleted collection) selectable rather than silently reset. */}
+        {value && !options.some((c) => c.slug === value) && <option value={value}>{value} (missing)</option>}
+        {options.map((c) => (
+          <option key={c.slug} value={c.slug}>
+            {c.namePlural}
+          </option>
+        ))}
+      </Select>
+      {!list.isLoading && options.length === 0 && (
+        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+          No collections yet — create one under Content → Collections.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -287,29 +322,30 @@ function FieldList({
   onChange,
   compact = false,
   idPrefix = "",
+  override,
 }: {
   fields: FieldDesc[];
   values: Props;
   onChange: (next: Props) => void;
   compact?: boolean;
   idPrefix?: string;
+  /** Replace one field's control (used for the collection block's slug picker). */
+  override?: (field: FieldDesc, value: unknown, set: (v: unknown) => void, id?: string) => ReactNode | null;
 }) {
   return (
     <div className={compact ? "space-y-2" : "space-y-3.5"}>
       {fields.map((field) => {
         const id = idPrefix ? `${idPrefix}-${field.name}` : undefined;
+        const set = (v: unknown) =>
+          onChange(setKey(values, field.name, v, field.optional && field.kind.kind === "string"));
+        const custom = override?.(field, values[field.name], set, id);
         return (
           <div key={field.name}>
             <Label htmlFor={id}>
               {field.label}
               {!field.optional && <span className="ml-1 text-zinc-400">*</span>}
             </Label>
-            <KindEditor
-              id={id}
-              kind={field.kind}
-              value={values[field.name]}
-              onChange={(v) => onChange(setKey(values, field.name, v, field.optional && field.kind.kind === "string"))}
-            />
+            {custom ?? <KindEditor id={id} kind={field.kind} value={values[field.name]} onChange={set} />}
           </div>
         );
       })}
@@ -337,6 +373,11 @@ export function PropsForm({
       values={(value as Props) ?? {}}
       onChange={onChange}
       idPrefix={`prop-${type}`}
+      override={(field, fieldValue, set, id) =>
+        type === "collection" && field.name === "collection" ? (
+          <CollectionSelect id={id} value={(fieldValue as string) ?? ""} onChange={set} />
+        ) : null
+      }
     />
   );
 }

@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
-import { BlockView } from "@wove/blocks";
+import { BlockView, type RenderContext } from "@wove/blocks";
 import { BlockMeta } from "@wove/sdk";
 import type { BuilderBlock } from "../lib/builderState";
 import { useToolMutation } from "../api";
@@ -28,6 +28,7 @@ export function BlockFrame({
   onDuplicate,
   onRemove,
   onReplace,
+  ctx,
 }: {
   block: BuilderBlock;
   index: number;
@@ -40,6 +41,8 @@ export function BlockFrame({
   onDuplicate: () => void;
   onRemove: () => void;
   onReplace: (block: BuilderBlock) => void;
+  /** Render context handed to the block (media base, prefetched collection data). */
+  ctx?: RenderContext;
 }) {
   const toast = useToast();
   const [aiOpen, setAiOpen] = useState(false);
@@ -83,7 +86,7 @@ export function BlockFrame({
       >
         <div className="wv-blocks pointer-events-none">
           <section className={`wv-block wv-block--${block.type}`}>
-            <BlockView block={block} />
+            <BlockView block={block} ctx={ctx} />
           </section>
         </div>
 

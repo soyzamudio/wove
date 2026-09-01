@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { LogOut, MoreVertical, Plus, Search } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiLogout, useToolQuery } from "../api";
 import { useToast } from "../context/ToastContext";
-import { visibleNavGroups, type NavItem } from "./nav";
+import { collectionNavItems, visibleNavGroups, type NavItem } from "./nav";
 import { CommandPalette } from "./CommandPalette";
 import { ChatLauncher, ChatPanel } from "./ChatPanel";
 import { ChatProvider, useChat } from "../context/ChatContext";
@@ -36,7 +36,10 @@ function LayoutShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const navGroups = visibleNavGroups(actor?.scopes);
+  // Collections are user-defined content types, so their nav rows are data.
+  const collections = useToolQuery("collection.list", {}, { staleTime: 60_000, retry: false });
+  const collectionItems = useMemo(() => collectionNavItems(collections.data), [collections.data]);
+  const navGroups = visibleNavGroups(actor?.scopes, collectionItems);
 
   const site = useToolQuery("site.info", {});
   const siteUrl = site.data?.settings.siteUrl || "";
@@ -221,7 +224,10 @@ function LayoutShell({ children }: { children: ReactNode }) {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        extraCommands={[{ label: "Site chat", hint: "⌘J", run: () => chat.setOpen(true) }]}
+        extraCommands={[
+          { label: "Site chat", hint: "⌘J", run: () => chat.setOpen(true) },
+          ...collectionItems.map((item) => ({ label: item.label, hint: "Collections", to: item.to })),
+        ]}
       />
       <ChatLauncher />
       <ChatPanel />

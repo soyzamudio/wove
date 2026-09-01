@@ -26,4 +26,5 @@ export const SIZES = {
   image: "(max-width: 72rem) 100vw, 72rem",
   hero: "(max-width: 860px) 100vw, 50vw",
   gallery: "(max-width: 640px) 100vw, 33vw",
+  collection: "(max-width: 640px) 100vw, 25vw",
 } as const;

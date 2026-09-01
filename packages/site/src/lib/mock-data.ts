@@ -1,5 +1,5 @@
-import type { Design, Menu, Post, Settings, Term } from "@wove/sdk";
-import { sampleDoc } from "@wove/blocks";
+import type { Collection, CollectionEntry, Design, Menu, Post, Settings, Term } from "@wove/sdk";
+import { sampleCollections, sampleDoc } from "@wove/blocks";
 
 const now = "2026-01-01T00:00:00.000Z";
 
@@ -231,3 +231,19 @@ export function mockSearch(q: string, limit = 20): Post[] {
     .filter((post) => post.title.toLowerCase().includes(needle) || post.content.toLowerCase().includes(needle))
     .slice(0, limit);
 }
+
+// ---------------------------------------------------------------- collections
+// Reuse the renderer's own fixtures so the mock site and block previews agree.
+const sampleCollectionData = sampleCollections();
+
+export const mockCollections: Collection[] = Object.values(sampleCollectionData).map((entry) => ({
+  ...entry.collection,
+  icon: "users",
+  public: true,
+  createdAt: now,
+  updatedAt: now,
+}));
+
+export const mockCollectionEntries: Record<string, CollectionEntry[]> = Object.fromEntries(
+  Object.entries(sampleCollectionData).map(([slug, data]) => [slug, data.entries]),
+);

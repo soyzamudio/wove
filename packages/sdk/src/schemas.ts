@@ -368,3 +368,41 @@ export type Redirect = z.infer<typeof Redirect>;
 
 export const NotFoundEntry = z.object({ path: z.string(), count: z.number().int(), lastSeen: ISODate, referrer: z.string().nullable() });
 export type NotFoundEntry = z.infer<typeof NotFoundEntry>;
+
+// ---------- collections ----------
+export const CollectionFieldType = z.enum(["text", "textarea", "markdown", "number", "boolean", "date", "select", "image", "url"]);
+export type CollectionFieldType = z.infer<typeof CollectionFieldType>;
+
+export const CollectionField = z.object({
+  key: z.string().regex(/^[a-z][a-z0-9_]*$/, "lowercase snake_case key"),
+  label: z.string().min(1),
+  type: CollectionFieldType,
+  required: z.boolean().default(false),
+  options: z.array(z.string().min(1)).optional().describe("select fields only"),
+  help: z.string().optional(),
+});
+export type CollectionField = z.infer<typeof CollectionField>;
+
+export const Collection = z.object({
+  slug: Slug,
+  name: z.string().min(1),
+  namePlural: z.string().min(1),
+  icon: z.string().default("database").describe("lucide icon name"),
+  fields: z.array(CollectionField).min(1).max(30),
+  titleFieldKey: z.string().describe("key of a text field used as the entry's display title"),
+  public: z.boolean().default(false).describe("expose published entries on the public API/site"),
+  createdAt: ISODate,
+  updatedAt: ISODate,
+});
+export type Collection = z.infer<typeof Collection>;
+
+export const CollectionEntry = z.object({
+  id: Id,
+  collection: Slug,
+  status: z.enum(["draft", "published"]).default("draft"),
+  data: z.record(z.unknown()).describe("field values keyed by field key; validated against the collection's fields"),
+  authorId: Id.nullable(),
+  createdAt: ISODate,
+  updatedAt: ISODate,
+});
+export type CollectionEntry = z.infer<typeof CollectionEntry>;

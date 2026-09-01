@@ -2,12 +2,14 @@ import type { APIRoute } from "astro";
 import { getSettings, listPosts } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
 import { blocksToMarkdown } from "../lib/blocks-text";
+import { collectCollectionDataForDocs } from "../lib/collections";
 import { PUBLIC_URL } from "../lib/env";
 
 export const GET: APIRoute = async () => {
   const settings = await getSettings();
   const siteUrl = settings.siteUrl.replace(/\/+$/, "");
   const { items } = await listPosts({ type: "post", limit: settings.postsPerPage });
+  const collections = await collectCollectionDataForDocs(items.map((post) => post.blocks));
 
   const feed = {
     version: "https://jsonfeed.org/version/1.1",
@@ -17,7 +19,7 @@ export const GET: APIRoute = async () => {
     feed_url: `${siteUrl}/feed.json`,
     items: items.map((post) => {
       const isBlocks = post.format === "blocks" && Boolean(post.blocks);
-      const contentText = isBlocks ? blocksToMarkdown(post.blocks!) : post.content;
+      const contentText = isBlocks ? blocksToMarkdown(post.blocks!, collections) : post.content;
       return {
         id: post.id,
         url: `${siteUrl}${post.path}`,

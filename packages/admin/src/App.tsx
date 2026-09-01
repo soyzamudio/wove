@@ -20,6 +20,9 @@ import { Tools } from "./pages/Tools";
 import { ImportExport } from "./pages/ImportExport";
 import { Templates } from "./pages/Templates";
 import { Redirects } from "./pages/Redirects";
+import { Collections } from "./pages/Collections";
+import { EntriesList } from "./pages/EntriesList";
+import { EntryEditor } from "./pages/EntryEditor";
 
 export function App() {
   return (
@@ -48,6 +51,10 @@ export function App() {
         <Route path="/audit" element={<Audit />} />
         <Route path="/redirects" element={<Redirects />} />
         <Route path="/menus" element={<Menus />} />
+        <Route path="/collections" element={<Collections />} />
+        <Route path="/c/:slug" element={<EntriesList />} />
+        <Route path="/c/:slug/new" element={<EntryEditor />} />
+        <Route path="/c/:slug/:id" element={<EntryEditor />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/users" element={<Users />} />
         <Route path="/profile" element={<Profile />} />

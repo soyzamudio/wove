@@ -177,7 +177,7 @@ describe("block.catalog / block.validate", () => {
     const cat = unwrap<{ type: string; name: string; description: string; propsSchema: any }[]>(
       await h.call(ADMIN, "block.catalog", {}),
     );
-    expect(cat.length).toBe(12);
+    expect(cat.length).toBe(13);
     expect(cat.map((c) => c.type)).toContain("hero");
     expect(cat.map((c) => c.type)).toContain("html");
     const heroEntry = cat.find((c) => c.type === "hero")!;
