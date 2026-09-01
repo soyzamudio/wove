@@ -13,6 +13,8 @@ COPY packages/admin/package.json packages/admin/package.json
 COPY packages/site/package.json packages/site/package.json
 COPY packages/sdk/package.json packages/sdk/package.json
 COPY packages/blocks/package.json packages/blocks/package.json
+# the root postinstall (scripts/postinstall.ts) runs during install
+COPY scripts ./scripts
 RUN bun install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
