@@ -1,24 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Clock, FileText, Plus, RotateCcw, Search, Sparkles, Trash2 } from "lucide-react";
+import { Clock, FileText, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { Post } from "@wove/sdk";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { treeOrder } from "../lib/hierarchy";
 import { relativeTime } from "../lib/time";
 import { useToast } from "../context/ToastContext";
+import { GenerateHero } from "../components/GenerateHero";
 import {
   Button,
   Card,
   EmptyState,
   ErrorBanner,
   Input,
-  Label,
-  Modal,
   PageHeader,
   SegmentedControl,
   Spinner,
   StatusPill,
-  Textarea,
   cx,
   errorMessage,
 } from "../components/ui";
@@ -62,9 +60,8 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
   const [q, setQ] = useState("");
   const [qInput, setQInput] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
-  const [draftOpen, setDraftOpen] = useState(searchParams.get("ai") === "1");
-  const [draftPrompt, setDraftPrompt] = useState("");
-  const [draftTags, setDraftTags] = useState("");
+  // Deep link: /posts?ai=1 focuses the hero prompt box (it used to open a modal).
+  const focusHero = searchParams.get("ai") === "1";
 
   const navigate = useNavigate();
   const toast = useToast();
@@ -150,16 +147,6 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
     onError: (err) => toast.error(errorMessage(err)),
   });
 
-  const draftMutation = useToolMutation("ai.draftPost", {
-    onSuccess: (created) => {
-      toast.success(`${noun} drafted`);
-      invalidate("post.list");
-      closeDraftModal();
-      navigate(`${basePath}/${created.id}`);
-    },
-    onError: (err) => toast.error(errorMessage(err)),
-  });
-
   function runBulk(action: BulkAction) {
     if (selected.length === 0) return;
     const confirm = BULK_CONFIRM[action];
@@ -177,27 +164,11 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
     );
   }
 
-  function closeDraftModal() {
-    setDraftOpen(false);
-    setDraftPrompt("");
-    setDraftTags("");
-    if (searchParams.get("ai")) {
-      searchParams.delete("ai");
-      setSearchParams(searchParams, { replace: true });
-    }
-  }
-
-  function handleGenerate() {
-    const terms = draftTags
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((name) => ({ taxonomy: "tag", name }));
-    draftMutation.mutate({
-      prompt: draftPrompt,
-      type: postType,
-      terms: terms.length > 0 ? terms : undefined,
-    });
+  /** Consume the ?ai=1 deep link once the hero has taken focus. */
+  function clearAiParam() {
+    if (!searchParams.get("ai")) return;
+    searchParams.delete("ai");
+    setSearchParams(searchParams, { replace: true });
   }
 
   const bulkActions: BulkAction[] = isTrash ? ["restore", "delete"] : ["trash", "publish", "draft", "delete"];
@@ -222,12 +193,8 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
                 {emptyTrash.isPending ? "Emptying…" : "Empty trash"}
               </Button>
             )}
-            <Button variant="secondary" onClick={() => setDraftOpen(true)}>
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Draft with AI
-            </Button>
             <Link to={`${basePath}/new`}>
-              <Button variant="primary">
+              <Button variant="secondary">
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 New {noun.toLowerCase()}
               </Button>
@@ -236,109 +203,77 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
         }
       />
 
-      <Modal
-        open={draftOpen}
-        onClose={closeDraftModal}
-        title={`Draft ${noun.toLowerCase()} with AI`}
-        footer={
-          <>
-            <Button variant="secondary" onClick={closeDraftModal} disabled={draftMutation.isPending}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleGenerate}
-              disabled={draftMutation.isPending || draftPrompt.trim().length === 0}
-            >
-              {draftMutation.isPending ? "Generating…" : "Generate"}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <div>
-            <Label>Prompt</Label>
-            <Textarea
-              rows={5}
-              value={draftPrompt}
-              onChange={(e) => setDraftPrompt(e.target.value)}
-              placeholder={`Describe the ${noun.toLowerCase()} you want to generate…`}
-              required
+      <GenerateHero postType={postType} autoFocus={focusHero} onFocused={clearAiParam} />
+
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+          <SegmentedControl
+            options={tabs}
+            value={status}
+            onChange={(next) => {
+              setStatus(next);
+              setSelected([]);
+            }}
+            ariaLabel="Filter by status"
+          />
+
+          <form
+            className="relative w-full sm:w-72"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setQ(qInput);
+            }}
+          >
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+              aria-hidden="true"
             />
-          </div>
-
-          <div>
-            <Label>Tags (comma-separated)</Label>
-            <Input value={draftTags} onChange={(e) => setDraftTags(e.target.value)} placeholder="tag-one, tag-two" />
-          </div>
-
-          {draftMutation.isError && <ErrorBanner message={errorMessage(draftMutation.error)} />}
+            <Input
+              aria-label={`Search ${heading.toLowerCase()}`}
+              placeholder="Search…"
+              className="pl-8"
+              value={qInput}
+              onChange={(e) => setQInput(e.target.value)}
+              onBlur={() => setQ(qInput)}
+            />
+          </form>
         </div>
-      </Modal>
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SegmentedControl
-          options={tabs}
-          value={status}
-          onChange={(next) => {
-            setStatus(next);
-            setSelected([]);
-          }}
-          ariaLabel="Filter by status"
-        />
-
-        <form
-          className="relative w-full sm:w-72"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setQ(qInput);
-          }}
-        >
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
-            aria-hidden="true"
-          />
-          <Input
-            aria-label={`Search ${heading.toLowerCase()}`}
-            placeholder="Search…"
-            className="pl-8"
-            value={qInput}
-            onChange={(e) => setQInput(e.target.value)}
-            onBlur={() => setQ(qInput)}
-          />
-        </form>
-      </div>
-
-      {selected.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-sm text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/50 dark:text-blue-100">
-          <span className="font-medium">
-            {selected.length} selected
-          </span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {bulkActions.map((action) => (
-              <Button
-                key={action}
-                size="sm"
-                variant={action === "delete" ? "danger" : "secondary"}
-                disabled={bulk.isPending}
-                onClick={() => runBulk(action)}
-              >
-                {BULK_LABELS[action]}
-              </Button>
-            ))}
+        {selected.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/50 dark:text-blue-100">
+            <span className="font-medium">{selected.length} selected</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {bulkActions.map((action) => (
+                <Button
+                  key={action}
+                  size="sm"
+                  variant={action === "delete" ? "danger" : "secondary"}
+                  disabled={bulk.isPending}
+                  onClick={() => runBulk(action)}
+                >
+                  {BULK_LABELS[action]}
+                </Button>
+              ))}
+            </div>
+            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected([])}>
+              Clear
+            </Button>
           </div>
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected([])}>
-            Clear
-          </Button>
-        </div>
-      )}
+        )}
 
-      {list.isLoading && <Spinner />}
-      {list.isError && <ErrorBanner message={errorMessage(list.error)} />}
+        {list.isLoading && (
+          <div className="p-4">
+            <Spinner />
+          </div>
+        )}
+        {list.isError && (
+          <div className="p-4">
+            <ErrorBanner message={errorMessage(list.error)} />
+          </div>
+        )}
 
-      {list.data && (
-        <Card className="overflow-hidden p-0">
-          {items.length === 0 ? (
+        {list.data &&
+          (items.length === 0 ? (
             <EmptyState
               icon={isTrash ? <Trash2 className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
               title={isTrash ? "Trash is empty" : `No ${heading.toLowerCase()} found`}
@@ -470,9 +405,8 @@ export function PostsList({ postType }: { postType: "post" | "page" }) {
                 })}
               </tbody>
             </table>
-          )}
-        </Card>
-      )}
+          ))}
+      </Card>
     </div>
   );
 }
