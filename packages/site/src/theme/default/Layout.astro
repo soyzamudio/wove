@@ -1,0 +1,54 @@
+---
+import "./Prose.css";
+import { API_URL } from "../../lib/env";
+import type { Settings } from "@agentpress/sdk";
+
+interface Props {
+  settings: Settings;
+  title?: string;
+  description?: string;
+  path?: string;
+}
+
+const { settings, title, description, path = "/" } = Astro.props;
+
+const siteUrl = settings.siteUrl.replace(/\/+$/, "");
+const pageTitle = title ? `${title} · ${settings.siteTitle}` : settings.siteTitle;
+const pageDescription = description ?? settings.tagline;
+const canonicalUrl = `${siteUrl}${path}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDescription} />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" type="application/feed+json" title={`${settings.siteTitle} Feed`} href={`${siteUrl}/feed.json`} />
+    <meta name="agentpress-api" content={API_URL} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={settings.siteTitle} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:url" content={canonicalUrl} />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <p class="site-title"><a href="/">{settings.siteTitle}</a></p>
+        {settings.tagline && <p class="site-tagline">{settings.tagline}</p>}
+      </header>
+      <main>
+        <slot />
+      </main>
+      <footer class="site-footer">
+        <p>
+          <a href="/feed.json">JSON Feed</a> · <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
