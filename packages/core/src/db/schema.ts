@@ -46,6 +46,8 @@ export const posts = sqliteTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     content: text("content").notNull().default(""),
+    /** "markdown" (content is Markdown) or "blocks" (content is a JSON BlocksDoc). */
+    format: text("format", { enum: ["markdown", "blocks"] }).notNull().default("markdown"),
     excerpt: text("excerpt"),
     status: text("status", { enum: ["draft", "published", "scheduled"] }).notNull().default("draft"),
     authorId: text("author_id"),

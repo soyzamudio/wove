@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Hero / auth gradient: deep navy → black with a soft radial glow. CSS only. */
-.ap-hero {
+/* Auth + dashboard hero gradient (namespaced away from the blocks renderer’s .ap-hero): deep navy → black with a soft radial glow. CSS only. */
+.ap-auth-hero {
   background-color: #0a0f1e;
   background-image:
     radial-gradient(75% 120% at 15% 0%, rgba(37, 99, 235, 0.38) 0%, rgba(37, 99, 235, 0) 60%),

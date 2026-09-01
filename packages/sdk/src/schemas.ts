@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BlocksDoc } from "./blocks";
 
 // ---------- primitives ----------
 export const Id = z.string().min(1);
@@ -29,13 +30,17 @@ export type Channel = z.infer<typeof Channel>;
 // ---------- content ----------
 export const PostType = z.enum(["post", "page"]);
 export const PostStatus = z.enum(["draft", "published", "scheduled"]);
+export const PostFormat = z.enum(["markdown", "blocks"]);
+export type PostFormat = z.infer<typeof PostFormat>;
 
 export const Post = z.object({
   id: Id,
   type: PostType,
   slug: Slug,
   title: z.string(),
-  content: z.string().describe("Markdown"),
+  content: z.string().describe("Markdown, or the JSON blocks document when format is 'blocks'"),
+  format: PostFormat.default("markdown"),
+  blocks: BlocksDoc.nullable().describe("parsed blocks document when format is 'blocks'; null otherwise"),
   excerpt: z.string().nullable(),
   status: PostStatus,
   authorId: Id.nullable(),
@@ -52,6 +57,8 @@ export const PostCreateInput = z.object({
   slug: Slug.optional().describe("derived from title if omitted"),
   title: z.string().min(1),
   content: z.string().default(""),
+  format: PostFormat.optional().describe("defaults to 'blocks' when `blocks` is given, else 'markdown'"),
+  blocks: BlocksDoc.optional().describe("blocks document; when given, core stores it as content and sets format='blocks'"),
   excerpt: z.string().optional(),
   status: PostStatus.default("draft"),
   publishedAt: ISODate.optional(),

@@ -1,5 +1,6 @@
 ---
 import "./Prose.css";
+import "@agentpress/blocks/blocks.css";
 import { API_URL } from "../../lib/env";
 import type { Settings } from "@agentpress/sdk";
 
@@ -8,9 +9,11 @@ interface Props {
   title?: string;
   description?: string;
   path?: string;
+  /** "wide" drops the 68ch prose constraint for block-based pages. */
+  variant?: "content" | "wide";
 }
 
-const { settings, title, description, path = "/" } = Astro.props;
+const { settings, title, description, path = "/", variant = "content" } = Astro.props;
 
 const siteUrl = settings.siteUrl.replace(/\/+$/, "");
 const pageTitle = title ? `${title} · ${settings.siteTitle}` : settings.siteTitle;
@@ -36,10 +39,13 @@ const canonicalUrl = `${siteUrl}${path}`;
     <meta property="og:url" content={canonicalUrl} />
   </head>
   <body>
-    <div class="site-shell">
+    <div class={`site-shell${variant === "wide" ? " site-shell--wide" : ""}`}>
       <header class="site-header">
         <p class="site-title"><a href="/">{settings.siteTitle}</a></p>
         {settings.tagline && <p class="site-tagline">{settings.tagline}</p>}
+        <nav class="site-nav">
+          <a href="/blog">Blog</a>
+        </nav>
       </header>
       <main>
         <slot />

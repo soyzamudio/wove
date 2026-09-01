@@ -15,6 +15,13 @@
       "when": 1788277622758,
       "tag": "0001_familiar_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788280119180,
+      "tag": "0002_colorful_la_nuit",
+      "breakpoints": true
     }
   ]
 }

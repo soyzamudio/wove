@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import type { DB } from "../db";
 import { terms as termsTable } from "../db/schema";
 import { readSettings } from "../tools/shared";
+import { blockCatalog } from "../tools/blocks";
 
 const MAX_TAGS = 30;
 
@@ -86,3 +87,93 @@ export function parseDraftJson(raw: string): DraftPostJson | null {
   }
   return null;
 }
+
+// ---------------------------------------------------------------- blocks / pages
+
+/** Generic tolerant JSON extraction: bare, fenced, or embedded in prose. Null when unparseable. */
+export function parseJsonLoose(raw: string): unknown | null {
+  const text = raw.trim();
+  const candidates = [text];
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) candidates.push(fenced[1].trim());
+  for (const [open, close] of [["{", "}"], ["[", "]"]] as const) {
+    const first = text.indexOf(open);
+    const last = text.lastIndexOf(close);
+    if (first >= 0 && last > first) candidates.push(text.slice(first, last + 1));
+  }
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c);
+    } catch {
+      // try the next candidate
+    }
+  }
+  return null;
+}
+
+/**
+ * The block vocabulary, rendered for a system prompt: one line of prose per type plus the
+ * JSON schema of its props. `html` is deliberately absent — raw HTML is admin-authored only,
+ * never something a model gets to emit.
+ */
+export function blockCatalogPrompt(): string {
+  const entries = blockCatalog().filter((b) => b.type !== "html");
+  return entries
+    .map((b) => `- ${b.type}: ${b.description}\n  props: ${JSON.stringify(b.propsSchema)}`)
+    .join("\n");
+}
+
+const BLOCK_RULES = [
+  "Every block is {\"type\": <one of the types above>, \"props\": <object matching that type's props schema>}.",
+  "Never invent image URLs: leave `image`, `images`, `avatar` and `logos` out entirely unless a URL was given to you.",
+  "Icons are lucide icon names in lowercase kebab-case (e.g. 'zap', 'shield-check').",
+  "Write real copy derived from the user's prompt — never lorem ipsum, never placeholder names or fake metrics presented as facts.",
+  "Do not use the `html` block.",
+].join("\n");
+
+export function generatePageSystem(base: string): string {
+  return [
+    base,
+    "",
+    "You design landing pages as a JSON document of typed blocks. Available block types:",
+    blockCatalogPrompt(),
+    "",
+    'Return ONLY a JSON object {"title": string, "blocks": Block[]} — no prose, no code fences, no commentary.',
+    "The page must have 4 to 8 blocks, start with a `hero`, and end with a `cta` or `faq`.",
+    BLOCK_RULES,
+  ].join("\n");
+}
+
+export function generateBlockSystem(base: string, type: string | undefined, page: string | null): string {
+  const lines = [
+    base,
+    "",
+    "You write single page sections as typed JSON blocks. Available block types:",
+    blockCatalogPrompt(),
+    "",
+    type
+      ? `Return ONLY a JSON Block of type ${type} — no prose, no code fences, no commentary.`
+      : "Return ONLY a single JSON Block, choosing the type that best fits the request — no prose, no code fences, no commentary.",
+    BLOCK_RULES,
+  ];
+  if (page) lines.push("", page);
+  return lines.join("\n");
+}
+
+export function editBlockSystem(base: string, block: { type: string }, page: string | null): string {
+  const lines = [
+    base,
+    "",
+    "You edit a single page section, expressed as a typed JSON block. Available block types:",
+    blockCatalogPrompt(),
+    "",
+    `Return ONLY the rewritten JSON Block. It must keep type "${block.type}" and satisfy that type's props schema — no prose, no code fences, no commentary.`,
+    BLOCK_RULES,
+  ];
+  if (page) lines.push("", page);
+  return lines.join("\n");
+}
+
+/** Feed zod's complaints straight back to the model; it fixes them more often than not. */
+export const FIX_ERRORS_NUDGE = (issues: string[]) =>
+  `Fix these errors and return only JSON: ${issues.join("; ")}`;

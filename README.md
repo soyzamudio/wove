@@ -32,3 +32,18 @@ bun run dev:site   # http://localhost:4321
 ```
 
 See `docs/ARCHITECTURE.md`.
+
+## Site rendering
+
+`packages/site` renders posts and pages server-side with zero client JS by
+default. A post/page with `format: "markdown"` renders through the existing
+Markdown pipeline; one with `format: "blocks"` is rendered by
+`@agentpress/blocks`'s `<BlockRenderer>` (a server-only React island — no
+`client:*` directive, so no hydration script ships). If a published page with
+slug `home` exists, it renders at `/` (blocks or markdown, whichever its
+format is); the paginated post listing that used to live at `/` moved to
+`/blog`, linked from the site nav. If no `home` page exists, `/` keeps
+showing the listing as before. `llms.txt`, `llms-full.txt`, and `feed.json`
+derive readable text from blocks documents via `blocksToMarkdown`
+(`packages/site/src/lib/blocks-text.ts`) so agents get the same content
+whether a page is Markdown or blocks.

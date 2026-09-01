@@ -81,6 +81,75 @@ const seedPosts = [
     terms: [{ taxonomy: "tag", name: "database" }],
   },
   {
+    type: "page", title: "Home", slug: "home", status: "published",
+    // A blocks page: `content` is the JSON document, `format` is set to "blocks" by post.create.
+    blocks: {
+      version: 1,
+      blocks: [
+        {
+          type: "hero",
+          props: {
+            eyebrow: "Open source CMS",
+            headline: "The CMS agents can actually drive",
+            subheadline: "agentpress exposes every editorial action as a typed, permissioned, audited tool — so people and agents publish through the same door.",
+            layout: "split",
+            buttons: [
+              { label: "Read the docs", href: "/about", variant: "primary" },
+              { label: "Browse the blog", href: "/blog", variant: "secondary" },
+            ],
+          },
+        },
+        {
+          type: "features",
+          props: {
+            headline: "Built tools-first",
+            intro: "One registry defines the contract. REST, MCP, OpenAPI and the audit log are derived from it, never hand-maintained.",
+            columns: 3,
+            items: [
+              { icon: "plug", title: "One registry, four surfaces", body: "Register a tool once and it is instantly callable over REST, over MCP, documented in OpenAPI, and recorded in the audit log." },
+              { icon: "shield-check", title: "Scopes on every call", body: "Users and agents are the same kind of principal: an actor with scopes. Nothing runs without the scopes it declares." },
+              { icon: "history", title: "Revisions by default", body: "Every update snapshots the previous state, so an agent's edit is as reversible as a human's." },
+              { icon: "blocks", title: "Blocks for pages", body: "Landing pages are typed block documents — validated on write, rendered by the site, editable by hand or by model." },
+              { icon: "sparkles", title: "Bring your own model", body: "Anthropic, OpenAI, Google, xAI or any OpenAI-compatible endpoint, with per-call token metering." },
+              { icon: "file-json", title: "Typed end to end", body: "The SDK owns the schemas; core implements exactly the catalog, and drift fails the build." },
+            ],
+          },
+        },
+        {
+          type: "stats",
+          props: {
+            headline: "The shape of the system",
+            items: [
+              { value: "32", label: "typed tools in the catalog" },
+              { value: "4", label: "surfaces derived from one registry" },
+              { value: "12", label: "page block types" },
+              { value: "100%", label: "of mutations audited" },
+            ],
+          },
+        },
+        {
+          type: "testimonials",
+          props: {
+            headline: "What early users say",
+            items: [
+              { quote: "Our publishing agent stopped screen-scraping an admin UI and started calling tools. The audit log finally tells us who changed what.", name: "Dana Okoye", role: "Platform lead, Kestrel Media" },
+              { quote: "Blocks were the missing piece. The model drafts a page, we tweak two headlines, and it ships.", name: "Marco Vidal", role: "Head of content, Northwind" },
+            ],
+          },
+        },
+        {
+          type: "cta",
+          props: {
+            headline: "Give your agents a real CMS",
+            body: "Clone the repo, run the seed, and point an MCP client at /mcp.",
+            style: "card",
+            buttons: [{ label: "Get started", href: "/about", variant: "primary" }],
+          },
+        },
+      ],
+    },
+  },
+  {
     type: "page", title: "About", slug: "about", status: "published",
     content: "agentpress is an open-source CMS built for humans and agents on equal footing.",
   },

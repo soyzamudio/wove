@@ -5,6 +5,7 @@ import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { PostsList } from "./pages/PostsList";
 import { PostEditor } from "./pages/PostEditor";
+import { PageBuilder } from "./pages/PageBuilder";
 import { Media } from "./pages/Media";
 import { Agents } from "./pages/Agents";
 import { Audit } from "./pages/Audit";
@@ -25,8 +26,10 @@ export function App() {
         <Route path="/posts/:id" element={<PostEditor postType="post" />} />
 
         <Route path="/pages" element={<PostsList postType="page" />} />
-        <Route path="/pages/new" element={<PostEditor postType="page" />} />
-        <Route path="/pages/:id" element={<PostEditor postType="page" />} />
+        <Route path="/pages/new" element={<PageBuilder />} />
+        <Route path="/pages/:id" element={<PageBuilder />} />
+        {/* Escape hatch for pages still stored as Markdown. */}
+        <Route path="/pages/:id/markdown" element={<PostEditor postType="page" />} />
 
         <Route path="/media" element={<Media />} />
         <Route path="/agents" element={<Agents />} />

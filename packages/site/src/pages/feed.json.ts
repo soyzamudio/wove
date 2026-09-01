@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getSettings, listPosts } from "../lib/api";
 import { renderMarkdown } from "../lib/markdown";
+import { blocksToMarkdown } from "../lib/blocks-text";
 import { API_URL } from "../lib/env";
 
 export const GET: APIRoute = async () => {
@@ -14,16 +15,21 @@ export const GET: APIRoute = async () => {
     description: settings.tagline || undefined,
     home_page_url: siteUrl,
     feed_url: `${siteUrl}/feed.json`,
-    items: items.map((post) => ({
-      id: post.id,
-      url: `${siteUrl}/${post.slug}`,
-      title: post.title,
-      content_html: renderMarkdown(post.content, API_URL),
-      summary: post.excerpt ?? undefined,
-      date_published: post.publishedAt ?? undefined,
-      date_modified: post.updatedAt,
-      tags: post.terms.map((term) => term.name),
-    })),
+    items: items.map((post) => {
+      const isBlocks = post.format === "blocks" && Boolean(post.blocks);
+      const contentText = isBlocks ? blocksToMarkdown(post.blocks!) : post.content;
+      return {
+        id: post.id,
+        url: `${siteUrl}/${post.slug}`,
+        title: post.title,
+        content_html: isBlocks ? renderMarkdown(contentText, API_URL) : renderMarkdown(post.content, API_URL),
+        content_text: contentText,
+        summary: post.excerpt ?? undefined,
+        date_published: post.publishedAt ?? undefined,
+        date_modified: post.updatedAt,
+        tags: post.terms.map((term) => term.name),
+      };
+    }),
   };
 
   return new Response(JSON.stringify(feed, null, 2), {

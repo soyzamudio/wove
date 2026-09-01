@@ -13,6 +13,8 @@ const ITEM_BASE =
   "group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 const ITEM_IDLE = "text-zinc-400 hover:bg-zinc-800/70 hover:text-white";
 const ITEM_ACTIVE = "bg-zinc-800 text-white";
+const NEW_BTN =
+  "flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-700 px-2 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, refresh } = useAuth();
@@ -115,13 +117,14 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <div className="px-3 pb-3">
-          <NavLink
-            to="/posts/new"
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
+        <div className="flex gap-2 px-3 pb-3">
+          <NavLink to="/posts/new" className={NEW_BTN}>
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             New post
+          </NavLink>
+          <NavLink to="/pages/new" className={NEW_BTN}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            New page
           </NavLink>
         </div>
 

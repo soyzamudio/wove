@@ -62,7 +62,7 @@ export function Dashboard() {
       <PageHeader title="Dashboard" subtitle={site.data?.settings.siteTitle || undefined} />
 
       <div className="space-y-6">
-        <section className="ap-hero relative overflow-hidden rounded-xl px-6 py-8 shadow-sm sm:px-8 sm:py-10">
+        <section className="ap-auth-hero relative overflow-hidden rounded-xl px-6 py-8 shadow-sm sm:px-8 sm:py-10">
           <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             Welcome back, {firstName}!
           </h2>

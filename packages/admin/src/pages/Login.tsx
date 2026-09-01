@@ -41,7 +41,7 @@ export function Login() {
   }
 
   return (
-    <div className="ap-hero flex min-h-screen items-center justify-center p-4">
+    <div className="ap-auth-hero flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-5 flex justify-center text-white">
           <Logo />

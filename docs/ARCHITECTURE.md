@@ -58,3 +58,13 @@ Built-in, provider-agnostic, and exposed as tools (`ai.*`) so agents get the sam
 **Metering**: every provider call writes an `ai_usage` row (actor, channel, tool, provider, model, input/output tokens, keySource, duration, ok). Core records **tokens only — no prices**. The OSS admin shows totals; the cloud edition prices `keySource=platform` rows.
 
 **Surfaces**: `ai.generate` / `ai.rewrite` (text), `ai.draftPost` (creates a draft), `ai.config` / `ai.configure` / `ai.models` / `ai.test` (setup), `ai.usage` (metering); plus `POST /api/ai/stream` (SSE) for the editor. Scope `ai:use` gates generation.
+
+## Pages: blocks + AI page builder
+
+Posts are Markdown; **pages are block documents** (`post.format = "blocks"`, `post.blocks: { version: 1, blocks: Block[] }`, stored as JSON in `content`). Blocks are **section-level** (hero, features, markdown, image, gallery, cta, testimonials, logos, faq, stats, columns, html) with typed props — the schema lives in `packages/sdk/src/blocks.ts` and is the single source of truth for validation, AI structured output, the builder, and rendering.
+
+**One renderer**: `packages/blocks` (`@agentpress/blocks`) holds the React components + plain CSS (`ap-*` classes, CSS variables). The admin canvas renders it client-side; Astro renders the same components server-side with no client JS. Preview = production.
+
+**Editing**: the whole document is replaced via `post.update { blocks }` — atomic, easy to audit and revise. `block.catalog` exposes the block types + JSON schemas so agents can discover them; `block.validate` normalizes a doc.
+
+**AI**: `ai.generatePage` (prompt → title + blocks, optional save as draft page), `ai.generateBlock` (description → one block, type chosen or forced), `ai.editBlock` (block + instruction → block). Outputs are validated against the zod schema with one retry that feeds back the validation errors. Image URLs are never invented by the model; users attach media in the builder.

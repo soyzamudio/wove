@@ -1,13 +1,64 @@
 import { and, desc, eq, like, or, inArray } from "drizzle-orm";
-import { ToolCatalog, ToolDescriptions } from "@agentpress/sdk";
+import { BlocksDoc, ToolCatalog, ToolDescriptions, type PostFormat } from "@agentpress/sdk";
 import { posts, postTerms, revisions, terms as termsTable } from "../db/schema";
 import { newId, nowIso } from "../ids";
 import { defineTool, badRequest, notFound, type Ctx } from "./registry";
 import {
   decodeCursor, encodeCursor, hydratePost, hydratePosts, setPostTerms, uniqueSlug,
 } from "./shared";
+import { LooseBlocksDoc, excerptFromDoc, withBlockIds } from "./blocks";
 
 const D = ToolDescriptions;
+
+/**
+ * `blocks` on the wire is tolerant of missing ids (see ./blocks); everything else is the
+ * SDK contract verbatim.
+ */
+const createInputSchema = ToolCatalog["post.create"].input.extend({ blocks: LooseBlocksDoc.optional() });
+const updateInputSchema = ToolCatalog["post.update"].input.extend({ blocks: LooseBlocksDoc.optional() });
+
+interface BlocksWrite {
+  /** JSON to store in `posts.content`, when the write changes it. */
+  content?: string;
+  format?: PostFormat;
+  /** The resulting document, when this write produced one. */
+  doc: BlocksDoc | null;
+}
+
+/** Parse a JSON blocks document supplied as a plain `content` string. */
+function parseContentAsBlocks(content: string): BlocksDoc {
+  let json: unknown;
+  try {
+    json = JSON.parse(content || '{"version":1,"blocks":[]}');
+  } catch (e) {
+    throw badRequest(`format is "blocks" but content is not valid JSON: ${(e as Error).message}`);
+  }
+  const parsed = BlocksDoc.safeParse(withBlockIds(json));
+  if (!parsed.success) {
+    throw badRequest("format is \"blocks\" but content is not a valid blocks document", parsed.error.flatten());
+  }
+  return parsed.data;
+}
+
+/**
+ * Decide what `content` + `format` a write lands on.
+ * `blocks` wins outright; `format: "blocks"` with a string body parses that body;
+ * `format: "markdown"` is taken at face value (the caller owns the content it sends).
+ */
+function resolveFormat(
+  input: { content?: string; format?: PostFormat; blocks?: BlocksDoc },
+  existing?: { content: string; format: PostFormat },
+): BlocksWrite {
+  if (input.blocks) {
+    return { content: JSON.stringify(input.blocks), format: "blocks", doc: input.blocks };
+  }
+  if (input.format === "blocks") {
+    const source = input.content !== undefined ? input.content : existing?.content ?? "";
+    const doc = parseContentAsBlocks(source);
+    return { content: JSON.stringify(doc), format: "blocks", doc };
+  }
+  return { format: input.format, doc: null };
+}
 
 function getPostRow(ctx: Ctx, id: string) {
   const row = ctx.db.select().from(posts).where(eq(posts.id, id)).get();
@@ -75,19 +126,21 @@ export const postGet = defineTool({
 export const postCreate = defineTool({
   name: "post.create",
   description: D["post.create"],
-  input: ToolCatalog["post.create"].input,
+  input: createInputSchema,
   output: ToolCatalog["post.create"].output,
   scopes: ToolCatalog["post.create"].scopes,
   handler: async (ctx, input) => {
     const ts = nowIso();
     const id = newId();
+    const write = resolveFormat(input);
     const draft: Record<string, unknown> = {
       id,
       type: input.type,
       slug: uniqueSlug(ctx.db, input.slug ?? input.title),
       title: input.title,
-      content: input.content,
-      excerpt: input.excerpt ?? null,
+      content: write.content ?? input.content,
+      format: write.format ?? "markdown",
+      excerpt: input.excerpt ?? (write.doc ? excerptFromDoc(write.doc) : null) ?? null,
       status: input.status,
       authorId: ctx.actor.kind === "user" ? ctx.actor.id : null,
       publishedAt: input.publishedAt ?? (input.status === "published" ? ts : null),
@@ -112,7 +165,7 @@ export const postCreate = defineTool({
 export const postUpdate = defineTool({
   name: "post.update",
   description: D["post.update"],
-  input: ToolCatalog["post.update"].input,
+  input: updateInputSchema,
   output: ToolCatalog["post.update"].output,
   scopes: ToolCatalog["post.update"].scopes,
   handler: async (ctx, input) => {
@@ -131,11 +184,17 @@ export const postUpdate = defineTool({
       actorId: ctx.actor.id,
     }).run();
 
+    const write = resolveFormat(input, { content: prev.content, format: prev.format });
+
     const draft: Record<string, unknown> = { updatedAt: ts };
     if (input.type !== undefined) draft.type = input.type;
     if (input.title !== undefined) draft.title = input.title;
     if (input.content !== undefined) draft.content = input.content;
+    if (write.content !== undefined) draft.content = write.content;
+    if (write.format !== undefined) draft.format = write.format;
     if (input.excerpt !== undefined) draft.excerpt = input.excerpt;
+    // Only fill a derived excerpt when there is none; never clobber one an editor wrote.
+    else if (write.doc && !prev.excerpt) draft.excerpt = excerptFromDoc(write.doc);
     if (input.meta !== undefined) draft.meta = input.meta;
     if (input.slug !== undefined) draft.slug = uniqueSlug(ctx.db, input.slug, prev.id);
     if (input.status !== undefined) {

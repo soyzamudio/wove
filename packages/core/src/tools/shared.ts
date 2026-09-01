@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { Post } from "@agentpress/sdk";
+import type { BlocksDoc, Post } from "@agentpress/sdk";
+import { parseBlocksDoc } from "@agentpress/sdk";
 import type { DB } from "../db";
 import { posts, postTerms, terms as termsTable, settings as settingsTable } from "../db/schema";
 import type { PostRow } from "../db/schema";
@@ -38,6 +39,19 @@ export function termsForPosts(db: DB, postIds: string[]): Map<string, PostTermRe
   return map;
 }
 
+/**
+ * Reads must never fail on a bad blocks payload: a page whose JSON drifted still renders
+ * (as an empty document) instead of 500-ing the whole list it appears in.
+ */
+export function safeBlocks(row: { id: string; content: string }): BlocksDoc {
+  try {
+    return parseBlocksDoc(row.content);
+  } catch (e) {
+    console.warn(`[blocks] post ${row.id} has an invalid blocks document; serving an empty one:`, (e as Error)?.message);
+    return { version: 1, blocks: [] };
+  }
+}
+
 export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
   return {
     id: row.id,
@@ -45,6 +59,8 @@ export function toPost(row: PostRow, refs: PostTermRef[] = []): Post {
     slug: row.slug,
     title: row.title,
     content: row.content,
+    format: row.format,
+    blocks: row.format === "blocks" ? safeBlocks(row) : null,
     excerpt: row.excerpt ?? null,
     status: row.status,
     authorId: row.authorId ?? null,

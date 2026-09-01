@@ -3,7 +3,9 @@
  * admin/site/agents call them. Adding a tool = add it here + implement in core.
  */
 import { z } from "zod";
-import * as S from "./schemas";
+import * as Sc from "./schemas";
+import * as B from "./blocks";
+const S = { ...Sc, ...B };
 
 export const ToolCatalog = {
   // content
@@ -38,9 +40,15 @@ export const ToolCatalog = {
   "ai.rewrite":   { input: z.object({ text: z.string().min(1), instruction: z.string().min(1) }), output: S.AiTextResult, scopes: ["ai:use"] },
   "ai.draftPost": { input: z.object({ prompt: z.string().min(1), type: S.PostType.default("post"), terms: z.array(z.object({ taxonomy: z.string(), name: z.string() })).optional() }), output: S.Post, scopes: ["ai:use", "content:write"] },
   "ai.usage":     { input: z.object({ limit: z.number().int().max(200).default(50), cursor: z.string().optional(), since: S.ISODate.optional() }), output: S.Page(S.AiUsageEntry).extend({ totals: z.object({ calls: z.number().int(), inputTokens: z.number().int(), outputTokens: z.number().int() }) }), scopes: ["audit:read"] },
+  // blocks (pages)
+  "block.catalog":   { input: z.object({}), output: z.array(z.object({ type: S.BlockType, name: z.string(), description: z.string(), propsSchema: z.unknown() })), scopes: ["content:read"] },
+  "block.validate":  { input: z.object({ doc: S.BlocksDoc }), output: z.object({ ok: z.literal(true), doc: S.BlocksDoc }), scopes: ["content:read"] },
+  "ai.generatePage": { input: z.object({ prompt: z.string().min(1), title: z.string().optional(), save: z.boolean().default(false).describe("when true, creates a draft page and returns it in `post`") }), output: z.object({ title: z.string(), doc: S.BlocksDoc, post: S.Post.nullable(), usage: S.AiUsage }), scopes: ["ai:use"] },
+  "ai.generateBlock": { input: z.object({ prompt: z.string().min(1), type: S.BlockType.optional().describe("force a block type; otherwise the model picks"), postId: S.Id.optional().describe("page for context") }), output: z.object({ block: S.Block, usage: S.AiUsage }), scopes: ["ai:use"] },
+  "ai.editBlock":    { input: z.object({ block: S.Block, instruction: z.string().min(1), postId: S.Id.optional() }), output: z.object({ block: S.Block, usage: S.AiUsage }), scopes: ["ai:use"] },
   // site
   "site.info":    { input: z.object({}), output: z.object({ settings: S.Settings, counts: z.object({ posts: z.number(), pages: z.number(), media: z.number() }), version: z.string() }), scopes: ["settings:read"] },
-} as const satisfies Record<string, { input: z.ZodTypeAny; output: z.ZodTypeAny; scopes: readonly S.Scope[] }>;
+} as const satisfies Record<string, { input: z.ZodTypeAny; output: z.ZodTypeAny; scopes: readonly Sc.Scope[] }>;
 
 export type ToolName = keyof typeof ToolCatalog;
 export type ToolInput<N extends ToolName> = z.input<(typeof ToolCatalog)[N]["input"]>;
@@ -74,4 +82,9 @@ export const ToolDescriptions: Record<ToolName, string> = {
   "ai.rewrite": "Rewrite the given text according to an instruction. Returns only the rewritten text.",
   "ai.draftPost": "Generate a complete post (title, excerpt, Markdown body) from a prompt and save it as a draft.",
   "ai.usage": "AI token usage log with totals. Core records tokens only; pricing is applied by the hosting layer.",
+  "block.catalog": "List the page block types with descriptions and JSON schemas for their props.",
+  "block.validate": "Validate a blocks document; returns it normalized (defaults filled, ids assigned).",
+  "ai.generatePage": "Generate a complete page (title + blocks) from a prompt; optionally save it as a draft page.",
+  "ai.generateBlock": "Generate one block from a description (e.g. 'pricing with 3 tiers'); the model picks the type unless forced.",
+  "ai.editBlock": "Rewrite a block according to an instruction, keeping its type; returns the new block.",
 };

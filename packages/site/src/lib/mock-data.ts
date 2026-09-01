@@ -1,4 +1,5 @@
 import type { Post, Settings, Term } from "@agentpress/sdk";
+import { sampleDoc } from "@agentpress/blocks";
 
 const now = "2026-01-01T00:00:00.000Z";
 
@@ -26,6 +27,8 @@ export const mockPosts: Post[] = [
     authorId: "1",
     publishedAt: "2026-01-01T09:00:00.000Z",
     meta: {},
+    format: "markdown",
+    blocks: null,
     terms: [
       { taxonomy: "tag", slug: "intro", name: "Intro" },
       { taxonomy: "category", slug: "news", name: "News" },
@@ -47,6 +50,8 @@ export const mockPosts: Post[] = [
     authorId: "1",
     publishedAt: "2026-01-05T12:00:00.000Z",
     meta: {},
+    format: "markdown",
+    blocks: null,
     terms: [{ taxonomy: "tag", slug: "updates", name: "Updates" }],
     createdAt: now,
     updatedAt: now,
@@ -65,10 +70,32 @@ export const mockPages: Post[] = [
     authorId: "1",
     publishedAt: "2026-01-01T00:00:00.000Z",
     meta: {},
+    format: "markdown",
+    blocks: null,
     terms: [],
     createdAt: now,
     updatedAt: now,
   },
+  (() => {
+    const blocks = sampleDoc();
+    return {
+      id: "4",
+      type: "page",
+      slug: "home",
+      title: "Home",
+      content: JSON.stringify(blocks),
+      excerpt: "A CMS your agents can actually use.",
+      status: "published",
+      authorId: "1",
+      publishedAt: "2026-01-01T00:00:00.000Z",
+      meta: {},
+      format: "blocks",
+      blocks,
+      terms: [],
+      createdAt: now,
+      updatedAt: now,
+    } satisfies Post;
+  })(),
 ];
 
 export const mockAllContent: Post[] = [...mockPosts, ...mockPages];
