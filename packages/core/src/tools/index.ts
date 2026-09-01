@@ -14,9 +14,10 @@ import { designTools } from "./design";
 import { importTools } from "./import";
 import { exportTools } from "./export";
 import { chatTools } from "./chat";
+import { templateTools } from "./templates";
 
 export const coreTools: Tool<any, any>[] = [
-  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools,
+  ...contentTools, ...taxonomyTools, ...mediaTools, ...settingsTools, ...agentTools, ...auditTools, ...aiTools, ...blockTools, ...aiPageTools, ...menuTools, ...designTools, ...importTools, ...exportTools, ...chatTools, ...templateTools,
 ];
 
 /** Registers every tool in the SDK catalog. Throws if a catalog entry is unimplemented. */
@@ -34,3 +35,4 @@ export { readMenus, readMenu } from "./menus";
 export { readDesign, writeDesign } from "./design";
 export { buildSiteExport } from "./export";
 export { decodeWxr, MAX_WXR_BYTES } from "./import";
+export { BUILTIN_TEMPLATES } from "../templates";

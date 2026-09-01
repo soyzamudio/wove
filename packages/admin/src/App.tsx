@@ -13,6 +13,7 @@ import { Settings } from "./pages/Settings";
 import { Menus } from "./pages/Menus";
 import { Tools } from "./pages/Tools";
 import { ImportExport } from "./pages/ImportExport";
+import { Templates } from "./pages/Templates";
 
 export function App() {
   return (
@@ -37,6 +38,7 @@ export function App() {
         <Route path="/agents" element={<Agents />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/menus" element={<Menus />} />
+        <Route path="/templates" element={<Templates />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/:tab" element={<Settings />} />
         <Route path="/tools" element={<Tools />} />

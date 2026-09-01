@@ -289,3 +289,45 @@ export type ChatMessage = z.infer<typeof ChatMessage>;
 
 export const ChatThread = z.object({ id: Id, title: z.string(), createdAt: ISODate, updatedAt: ISODate });
 export type ChatThread = z.infer<typeof ChatThread>;
+
+// ---------- site templates ----------
+export const TemplatePage = z.object({
+  slug: Slug,
+  title: z.string().min(1),
+  blocks: BlocksDoc,
+  seo: z.object({ title: z.string().nullable().optional(), description: z.string().nullable().optional() }).optional(),
+});
+export const TemplateMedia = z.object({ name: z.string(), mime: z.string(), base64: z.string() });
+export const SiteTemplate = z.object({
+  version: z.literal(1).default(1),
+  meta: z.object({
+    slug: Slug,
+    name: z.string().min(1),
+    description: z.string().default(""),
+    author: z.string().default(""),
+    templateVersion: z.string().default("1.0.0"),
+  }),
+  design: Design,
+  menus: z.array(Menu).default([]),
+  settings: Settings.pick({ siteTitle: true, tagline: true }).partial().optional(),
+  pages: z.array(TemplatePage).min(1),
+  samplePosts: z.array(z.object({
+    slug: Slug, title: z.string(), content: z.string().describe("Markdown"),
+    excerpt: z.string().optional(), terms: z.array(z.object({ taxonomy: z.string(), name: z.string() })).optional(),
+  })).default([]),
+  media: z.array(TemplateMedia).default([]).describe("bundled assets; page image URLs reference them as template://<name>"),
+});
+export type SiteTemplate = z.infer<typeof SiteTemplate>;
+
+export const TemplateSummary = z.object({
+  slug: Slug, name: z.string(), description: z.string(), author: z.string(), templateVersion: z.string(),
+  pages: z.number().int(), source: z.enum(["builtin"]),
+});
+export type TemplateSummary = z.infer<typeof TemplateSummary>;
+
+export const TemplateApplyReport = z.object({
+  createdPages: z.array(Slug), overwrittenPages: z.array(Slug), skippedPages: z.array(Slug),
+  createdPosts: z.array(Slug), menusSet: z.array(z.string()), designApplied: z.boolean(),
+  settingsApplied: z.boolean(), mediaUploaded: z.number().int(),
+});
+export type TemplateApplyReport = z.infer<typeof TemplateApplyReport>;

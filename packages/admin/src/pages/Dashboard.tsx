@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bot, FilePlus2, FileText, Files, Sparkles } from "lucide-react";
+import { Bot, FilePlus2, FileText, Files, LayoutTemplate, Sparkles } from "lucide-react";
 import { useInvalidateTool, useToolMutation, useToolQuery } from "../api";
 import { relativeTime } from "../lib/time";
 import { useAuth } from "../context/AuthContext";
@@ -82,6 +82,10 @@ export function Dashboard() {
             <Link to="/posts?ai=1" className={HERO_BTN}>
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               Draft with AI
+            </Link>
+            <Link to="/templates" className={HERO_BTN}>
+              <LayoutTemplate className="h-3.5 w-3.5" aria-hidden="true" />
+              Browse templates
             </Link>
             <Link to="/agents" className={HERO_BTN}>
               <Bot className="h-3.5 w-3.5" aria-hidden="true" />

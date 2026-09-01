@@ -84,3 +84,11 @@ A conversational agent inside the admin that operates the site through the same 
 **Surfaces**: `POST /api/chat/stream` (SSE: `token`, `tool_call`, `tool_result`, `plan`, `done`, `error`), tools `chat.threads`, `chat.get`, `chat.apply { threadId, messageId, approve: callIds[] }`, `chat.discard`, `chat.delete`. Channel enum gains `chat`.
 
 **Admin**: a slide-over panel available on every page (⌘J): streaming replies, tool-call cards (reads collapsed, mutations as approval cards with diff/preview), Approve all / individual, and links to what was created. Usage is metered like every other AI call.
+
+## Site templates
+
+A template is **pure data** — no executable code, unlike WordPress themes: `SiteTemplate = { meta, design, menus, settings?, pages[] (block documents), samplePosts[], media[] }` (schema in `packages/sdk`). Bundled images use a `template://<name>` scheme rewritten to real media URLs on apply.
+
+Tools: `template.list` / `template.get` (built-ins shipped in `packages/core/src/templates/`), `template.preview` (dry-run report), `template.apply` (merge = skip existing slugs, replace = overwrite; sample content opt-in; everything flows through the normal tool handlers so hooks/validation/audit apply), `template.export` (the current site becomes a template — the seed of a marketplace where every user is an author). The admin gallery renders live previews with the shared block renderer under each template's own design tokens — no screenshot pipeline.
+
+Because templates can't execute code, a future marketplace can review submissions cheaply and buyers can't be broken by an update — the "it just works" property is structural.

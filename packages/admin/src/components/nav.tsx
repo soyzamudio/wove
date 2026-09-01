@@ -6,6 +6,7 @@ import {
   Files,
   Image,
   LayoutDashboard,
+  LayoutTemplate,
   Menu,
   ScrollText,
   Settings as SettingsIcon,
@@ -43,6 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/pages", label: "Pages", icon: Files },
       { to: "/media", label: "Media", icon: Image },
       { to: "/menus", label: "Menus", icon: Menu },
+      { to: "/templates", label: "Templates", icon: LayoutTemplate },
     ],
   },
   {

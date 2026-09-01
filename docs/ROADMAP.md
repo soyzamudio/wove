@@ -46,7 +46,7 @@ Snapshot: 2026-09-01. Legend — ✅ have · 🟡 partial · ❌ missing · 🧩
 ### Appearance
 | WordPress | wove | Notes |
 |---|---|---|
-| Themes (multiple, switchable) | 🟡 | One default theme; `@theme` alias exists |
+| Themes (multiple, switchable) | 🟡 | One default code theme; **data templates** (design+menus+pages) shipped with 4 built-ins + import/export — the Envato-style story |
 | Customizer / global styles (colors, fonts, logo) | ✅ | Settings → Design with live preview; `design.*` tools |
 | Navigation menus | ✅ | Menus page (drag tree, one level); `menu.*` tools |
 | Widgets / sidebars | ❌ | Replace with block areas (header/footer) |
