@@ -11,8 +11,8 @@ import { ToolCatalog, ToolDescriptions, type UserRole } from "@wove/sdk";
 import { invites, sessions, users } from "../db/schema";
 import { newId, nowIso, sha256 } from "../ids";
 import { deleteUserSessions, hashPassword, INVITE_TTL_MS, newInviteToken, verifyPassword } from "../auth";
-import { adminBaseUrl, emailFrom } from "../env";
-import { brandFor, emailStatus, inviteEmail, resolveDriver, sendEmail, testEmail } from "../email";
+import { adminBaseUrl } from "../env";
+import { brandFor, inviteEmail, resolveDriver, sendEmail } from "../email";
 import { conflict, defineTool, notFound, ToolError, type Ctx } from "./registry";
 
 const D = ToolDescriptions;
@@ -98,9 +98,9 @@ export const userInvite = defineTool({
     const body = inviteEmail(brandFor(ctx.db), { acceptUrl, role: input.role, invitedBy: inviter });
     // The invite exists either way: a mail failure must not strand the row, and the caller
     // still gets a working link back.
-    let emailSent = resolveDriver().name !== "console";
+    let emailSent = resolveDriver(process.env, ctx.db).name !== "console";
     try {
-      await sendEmail({ to: email, ...body });
+      await sendEmail({ to: email, ...body }, process.env, ctx.db);
     } catch (e) {
       console.error("[user.invite] email failed:", (e as Error)?.message);
       emailSent = false;
@@ -199,35 +199,6 @@ export const userUpdateProfile = defineTool({
   },
 });
 
-// ---------------------------------------------------------------- email
-
-export const emailStatusTool = defineTool({
-  name: "email.status",
-  description: D["email.status"],
-  input: ToolCatalog["email.status"].input,
-  output: ToolCatalog["email.status"].output,
-  scopes: ToolCatalog["email.status"].scopes,
-  mutation: false,
-  handler: () => emailStatus(),
-});
-
-export const emailTest = defineTool({
-  name: "email.test",
-  description: D["email.test"],
-  input: ToolCatalog["email.test"].input,
-  output: ToolCatalog["email.test"].output,
-  scopes: ToolCatalog["email.test"].scopes,
-  handler: async (ctx, input) => {
-    try {
-      await sendEmail({ to: input.to, ...testEmail(brandFor(ctx.db)) });
-    } catch (e) {
-      throw new ToolError("internal_error", `Could not send from ${emailFrom()}: ${(e as Error)?.message}`);
-    }
-    return { ok: true as const };
-  },
-});
-
 export const userTools = [
   userList, userInvite, userInvites, userRevokeInvite, userUpdateRole, userRemove, userUpdateProfile,
-  emailStatusTool, emailTest,
 ];

@@ -349,7 +349,10 @@ export const EmailStatus = z.object({
   driver: z.enum(["console", "smtp", "resend"]),
   from: z.string(),
   configured: z.boolean().describe("false when the console driver is active (emails only logged)"),
+  source: z.enum(["dashboard", "env", "none"]).describe("where the active config came from; 'none' = console fallback"),
+  secretHint: z.string().nullable().describe("masked tail of the stored dashboard secret, null otherwise"),
 });
+export type EmailStatus = z.infer<typeof EmailStatus>;
 
 // ---------- redirects & 404s ----------
 export const Redirect = z.object({

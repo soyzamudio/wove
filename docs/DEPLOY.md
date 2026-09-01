@@ -104,6 +104,12 @@ secure cookies line up, and set `WOVE_TRUST_PROXY=1` so core trusts
 | `WOVE_AUDIT_RETENTION_DAYS` | `90` | days to keep audit log rows; `0` disables pruning |
 | `WOVE_AI_USAGE_RETENTION_DAYS` | `365` | days to keep AI usage records |
 | `WOVE_TRASH_RETENTION_DAYS` | `30` | days before trashed content is purged |
+| `WOVE_EMAIL_DRIVER` | `console` | `console` (log only), `smtp`, or `resend` |
+| `WOVE_EMAIL_FROM` | `Wove <no-reply@localhost>` | sender address |
+| `WOVE_SMTP_URL` | — | `smtp://user:pass@host:587` (or `smtps://`) when driver is `smtp` |
+| `WOVE_RESEND_KEY` | — | Resend API key when driver is `resend` |
+
+> **Email via the dashboard:** Settings → Site → Email configures the driver, sender, and secret from the admin — the secret is stored encrypted under `WOVE_SECRET`, and dashboard config takes precedence over the env vars above.
 
 ## S3 media
 

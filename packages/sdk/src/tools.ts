@@ -50,6 +50,7 @@ export const ToolCatalog = {
   "user.updateProfile": { input: z.object({ name: z.string().min(1).optional(), password: z.string().min(8).optional(), currentPassword: z.string().optional().describe("required when changing password") }), output: S.User, scopes: ["content:read"] },
   // email
   "email.status":    { input: z.object({}), output: S.EmailStatus, scopes: ["settings:read"] },
+  "email.configure": { input: z.object({ driver: z.enum(["console", "smtp", "resend"]).optional(), from: z.string().optional(), secret: z.string().min(1).optional().describe("Resend API key, or SMTP URL like smtp://user:pass@host:587"), clearSecret: z.boolean().optional() }), output: S.EmailStatus, scopes: ["settings:write"] },
   "email.test":      { input: z.object({ to: z.string().email() }), output: z.object({ ok: z.literal(true) }), scopes: ["settings:write"] },
   // redirects & 404s
   "redirect.list":   { input: z.object({}), output: z.array(S.Redirect), scopes: ["settings:read"] },
@@ -134,6 +135,7 @@ export const ToolDescriptions: Record<ToolName, string> = {
   "user.remove": "Remove a user. Their posts stay, attributed to the removed author id.",
   "user.updateProfile": "Update your own name or password (current password required for a password change).",
   "email.status": "Which email driver is configured (console/smtp/resend) and the from address.",
+  "email.configure": "Configure email from the dashboard: driver, from address, and the secret (stored encrypted, never returned). Env vars remain the fallback.",
   "email.test": "Send a test email to the given address.",
   "redirect.list": "List redirects (manual, slug-change, import).",
   "redirect.create": "Create a redirect from a path to a path/URL (301 or 302).",

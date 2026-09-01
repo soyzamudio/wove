@@ -181,7 +181,8 @@ function writeAudit(ctx: Ctx, tool: string, input: unknown, ok: boolean, error: 
   }
 }
 
-const SECRET_KEYS = new Set(["password", "base64", "apiKey", "api_key", "keyHash"]);
+// `secret` is email.configure's SMTP URL / Resend key; no other tool takes a field by that name.
+const SECRET_KEYS = new Set(["password", "base64", "apiKey", "api_key", "keyHash", "secret"]);
 function redact(input: unknown): unknown {
   if (!input || typeof input !== "object" || Array.isArray(input)) return input;
   const out: Record<string, unknown> = {};

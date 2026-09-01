@@ -21,7 +21,10 @@ describe("driver selection", () => {
   });
 
   test("status reports console as unconfigured", () => {
-    expect(emailStatus({})).toEqual({ driver: "console", from: "Wove <no-reply@localhost>", configured: false });
+    expect(emailStatus({})).toEqual({
+      driver: "console", from: "Wove <no-reply@localhost>", configured: false, source: "none", secretHint: null,
+    });
+    expect(emailStatus({ WOVE_EMAIL_DRIVER: "resend" }).source).toBe("env");
     expect(emailStatus({ WOVE_EMAIL_DRIVER: "resend" }).configured).toBe(true);
     expect(resolveDriver({ WOVE_EMAIL_DRIVER: "smtp" }).name).toBe("smtp");
   });
