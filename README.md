@@ -159,14 +159,15 @@ Or deploy it to a host in one click:
 
 <p>
   <a href="https://render.com/deploy?repo=https://github.com/soyzamudio/wove"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="32"></a>
-  <!-- TODO: swap for published template URL -->
-  <a href="https://railway.com/new"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="32"></a>
+  <!-- Railway button hidden until the template is published:
+  <a href="https://railway.com/new/template/<CODE>"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="32"></a>
+  -->
 </p>
 
 Render reads [`render.yaml`](render.yaml) and provisions the disk, the health
-check and a generated `WOVE_SECRET` for you. Railway currently lands on **New
-Project → Deploy from GitHub repo** (a true one-click link needs a published
-template — [walkthrough](docs/DEPLOY.md#publishing-a-wove-template-on-railway)).
+check and a generated `WOVE_SECRET` for you. A Railway template is on the way
+([walkthrough](docs/DEPLOY.md#publishing-a-wove-template-on-railway)); until
+then, Railway users can deploy the repo's Dockerfile from **New Project**.
 
 > **Attach a volume at `/app/packages/core/data` on either host.** That single
 > directory holds the SQLite database and your media; on an ephemeral
