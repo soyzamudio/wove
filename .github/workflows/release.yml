@@ -84,3 +84,13 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
           fi
+
+      # Rebuild the marketing site so its release badge picks up this version.
+      # LANDING_DEPLOY_HOOK is a Cloudflare deploy-hook URL (repo secret); the
+      # step is skipped quietly when the secret isn't configured.
+      - name: Rebuild usewove.com
+        if: ${{ env.LANDING_DEPLOY_HOOK != '' }}
+        env:
+          LANDING_DEPLOY_HOOK: ${{ secrets.LANDING_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$LANDING_DEPLOY_HOOK" > /dev/null && echo "landing rebuild triggered"
+        continue-on-error: true
