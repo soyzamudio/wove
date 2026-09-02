@@ -62,7 +62,11 @@ ENV WOVE_DOCKER=1
 
 VOLUME /app/packages/core/data
 EXPOSE 4000
-USER wove
+
+# Start as root so the entrypoint can chown PaaS-mounted volumes (Railway/Render
+# mount them root-owned), then it drops to the `wove` user before exec'ing CMD.
+COPY --chmod=755 scripts/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

@@ -32,6 +32,8 @@ Restore by extracting that tarball back into the volume the same way, in reverse
 
 ## One-click deploys
 
+> Volume permissions are handled automatically: the container starts as root, fixes the mounted data directory's ownership, and drops to a non-root user before the app runs. No `RAILWAY_RUN_UID` or manual `chown` needed (v0.1.1+).
+
 Two hosts can bring Wove up from a button. Both run the same published image
 (`ghcr.io/soyzamudio/wove:latest`) as a single container.
 
