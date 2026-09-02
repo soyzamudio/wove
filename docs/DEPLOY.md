@@ -30,6 +30,124 @@ docker run --rm -v wove_wove-data:/data -v "$PWD":/backup alpine \
 
 Restore by extracting that tarball back into the volume the same way, in reverse.
 
+## One-click deploys
+
+Two hosts can bring Wove up from a button. Both run the same published image
+(`ghcr.io/soyzamudio/wove:latest`) as a single container.
+
+> ### ⚠️ Attach a volume, or lose your site
+>
+> Everything Wove writes — the SQLite database *and* locally-stored media —
+> lives in one directory: **`/app/packages/core/data`**. Render and Railway both
+> give containers an ephemeral filesystem. **With no persistent volume mounted
+> at that path, every redeploy, restart, or platform-side machine move deletes
+> every post, page, and upload.** There is no warning and no recovery. The
+> Render blueprint below declares the disk for you; on Railway you must attach
+> the volume yourself (see the walkthrough) — Railway cannot declare volumes in
+> a repo config file.
+>
+> Persistent disks are a paid feature on Render — the free plan cannot mount one,
+> which is why the blueprint asks for `starter`. Deploying Wove to a free,
+> diskless instance is a demo, not a site.
+
+### Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/soyzamudio/wove)
+
+Live today, no extra setup: the button points at
+`https://render.com/deploy?repo=https://github.com/soyzamudio/wove`, and Render
+reads [`render.yaml`](../render.yaml) from the repo root
+([Blueprint spec](https://render.com/docs/blueprint-spec)). That blueprint
+declares:
+
+- a `runtime: image` web service on `ghcr.io/soyzamudio/wove:latest`, `plan: starter`;
+- a 2 GB disk named `wove-data` mounted at `/app/packages/core/data`;
+- `healthCheckPath: /health`;
+- `WOVE_SECRET` with `generateValue: true` — Render generates a random 256-bit
+  value once and keeps it stable across deploys (changing it later makes stored
+  AI keys undecryptable);
+- `PORT=4000`. Render's own default is `PORT=10000` and it will usually
+  auto-detect whatever port you bind, but pinning it matches the port the image
+  `EXPOSE`s. Core reads `$PORT` either way, so both values work.
+- `WOVE_TRUST_PROXY=1`, since Render terminates TLS in front of the container.
+
+`WOVE_SITE_URL` is deliberately left unset: core falls back to Render's injected
+`RENDER_EXTERNAL_URL`, so CORS, `Secure` cookies, and invite/reset links are
+correct on the `*.onrender.com` URL from the first boot. Set it explicitly once
+you point a custom domain at the service.
+
+Optional AI keys are commented out in the blueprint with `sync: false`, which
+makes Render prompt for the value during the initial Blueprint flow instead of
+committing it. Note that Render **does not** auto-redeploy when a new image is
+pushed to the same tag — redeploy from the dashboard, a deploy hook, or the API.
+
+### Railway
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new)
+
+Railway works today via **New Project → Deploy from GitHub repo** (or **Deploy a
+Docker image** with `ghcr.io/soyzamudio/wove:latest`). The button above links to
+`https://railway.com/new` because a *true* one-click Railway link requires a
+**published template** — there is no documented URL that deploys an arbitrary
+public GitHub repo in one hop. Publishing one takes about five minutes; the
+walkthrough is below.
+
+[`railway.json`](../railway.json) in the repo root sets the healthcheck
+(`/health`), the restart policy (`ON_FAILURE`, 10 retries) and asserts the
+required mount path, for a repo-based deploy.
+
+Two caveats, both confirmed against Railway's own docs:
+
+- **Volumes cannot be declared in `railway.json`.** The
+  [schema](https://railway.com/railway.schema.json) has no volume key; the
+  closest thing, `deploy.requiredMountPath`, only *asserts* that a mount is
+  required — it does not create one. Volumes are created in the dashboard, via
+  `railway volume add --mount-path …`, in the template composer, or in
+  [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code).
+- **`railway.json` / `railway.toml` config-as-code is deprecated.** Railway's
+  [IaC docs](https://docs.railway.com/infrastructure-as-code) state new services
+  cannot opt into it and that existing files **stop being read on 2026-12-01**.
+  The replacement is a `.railway/railway.ts` project definition applied with the
+  CLI. Treat `railway.json` here as a convenience for existing services; the
+  template below is the durable path.
+
+#### Publishing a Wove template on Railway
+
+Do this once from your own Railway account, then paste the resulting URL into
+the README and the landing page (both currently carry a `TODO` comment).
+
+1. Go to **Workspace Settings → Templates → New Template** to open the template
+   composer. (If you already have a working Wove project, project **Settings →
+   Generate Template from Project** is the faster start.)
+2. Add a service and set its source to **Docker Image**:
+   `ghcr.io/soyzamudio/wove:latest`.
+3. **Right-click the service → Attach Volume**, and set the mount path to
+   **`/app/packages/core/data`**. This is the step that makes the deploy durable —
+   do not skip it.
+4. Add the environment variables:
+   - `WOVE_SECRET` = `${{secret(32)}}` — Railway's generated-secret template
+     function, the equivalent of Render's `generateValue: true`.
+   - `WOVE_ENV` = `production`
+   - `WOVE_TRUST_PROXY` = `1`
+   - `PORT` = `4000`
+   Leave `WOVE_SITE_URL` unset — core falls back to `RAILWAY_PUBLIC_DOMAIN`.
+5. Set the service's healthcheck path to `/health` and generate a public domain
+   for it.
+6. Click **Publish** and fill out the template form.
+7. Copy the template code from the published URL and build the button link:
+   `https://railway.com/new/template/<CODE>?utm_medium=integration&utm_source=button&utm_campaign=wove`
+8. Replace `https://railway.com/new` in `README.md` and in usewove.com's
+   `site/src/pages/index.astro` with that URL, and delete the `TODO` comments.
+
+### Other platforms
+
+Heroku-, Vercel-, and Netlify-class platforms are not viable targets yet: they
+offer no persistent filesystem at all, and Wove currently stores content in
+SQLite on disk. They become one-click targets once the **Postgres driver** lands
+(Phase C item 7 on the [roadmap](ROADMAP.md)) and media moves to S3 — at which
+point the container is fully stateless. Until then, `WOVE_STORAGE=s3` removes
+the media half of the problem but the database still needs a disk.
+
 ## Run on a VPS without Docker
 
 ```sh
@@ -86,7 +204,7 @@ secure cookies line up, and set `WOVE_TRUST_PROXY=1` so core trusts
 |---|---|---|
 | `WOVE_ENV` | `development` | set `production` to enable prod hardening (secure cookies, static admin + site proxy, CORS lockdown) |
 | `PORT` | `4000` | core's HTTP port |
-| `WOVE_SITE_URL` | — | public URL of the site; drives CORS, secure-cookie detection, and canonical/OG links |
+| `WOVE_SITE_URL` | falls back to `RENDER_EXTERNAL_URL`, then `https://$RAILWAY_PUBLIC_DOMAIN` | public URL of the site; drives CORS, secure-cookie detection, admin/invite/reset links, and canonical/OG links |
 | `WOVE_PUBLIC_URL` | falls back to `WOVE_API_URL` | public origin used to build absolute media/OG URLs on the site — set this when the API's public origin differs from where the site reaches it internally |
 | `WOVE_SECRET` | generated to `data/secret` | encrypts stored AI keys |
 | `WOVE_ADMIN_DIST` | `packages/admin/dist` | where core serves the built admin SPA from, under `/admin` |

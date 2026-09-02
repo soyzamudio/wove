@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp, ADMIN_CSP } from "./http";
 import { clearedCookie, sessionCookie } from "./auth";
-import { corsOrigins, secureCookies, mode } from "./env";
+import { adminBaseUrl, corsOrigins, secureCookies, siteUrl, mode } from "./env";
 import { isReservedPath } from "./proxy";
 import { makeHarness } from "./test-helpers";
 
@@ -205,6 +205,47 @@ describe("CORS allowlist", () => {
 
   test("a same-origin request carries no Origin and gets no CORS header", async () => {
     expect((await get(app({}), "/health")).headers.get("access-control-allow-origin")).toBeNull();
+  });
+});
+
+// ------------------------------------------------------------------ site URL resolution
+describe("siteUrl", () => {
+  test("precedence: explicit > Render > Railway > unset", () => {
+    expect(siteUrl({})).toBeUndefined();
+    expect(siteUrl({ WOVE_SITE_URL: "  https://explicit.example  " })).toBe("https://explicit.example");
+    expect(siteUrl({ RENDER_EXTERNAL_URL: "https://wove.onrender.com" })).toBe("https://wove.onrender.com");
+    expect(siteUrl({ RAILWAY_PUBLIC_DOMAIN: "wove-production.up.railway.app" })).toBe(
+      "https://wove-production.up.railway.app",
+    );
+    // explicit beats both platform vars
+    expect(
+      siteUrl({
+        WOVE_SITE_URL: "https://explicit.example",
+        RENDER_EXTERNAL_URL: "https://wove.onrender.com",
+        RAILWAY_PUBLIC_DOMAIN: "wove.up.railway.app",
+      }),
+    ).toBe("https://explicit.example");
+    // Render beats Railway
+    expect(
+      siteUrl({ RENDER_EXTERNAL_URL: "https://wove.onrender.com", RAILWAY_PUBLIC_DOMAIN: "wove.up.railway.app" }),
+    ).toBe("https://wove.onrender.com");
+    // an empty/whitespace value is treated as unset, not as an override
+    expect(siteUrl({ WOVE_SITE_URL: "   ", RENDER_EXTERNAL_URL: "https://wove.onrender.com" })).toBe(
+      "https://wove.onrender.com",
+    );
+  });
+
+  test("everything that consumes the site URL flows through it", () => {
+    const render = { WOVE_ENV: "production", RENDER_EXTERNAL_URL: "https://wove.onrender.com" };
+    expect(corsOrigins(render)).toContain("https://wove.onrender.com");
+    expect(secureCookies(render)).toBe(true);
+    expect(adminBaseUrl(render)).toBe("https://wove.onrender.com/admin");
+    expect(sessionCookie("abc", 60, render)).toContain("; Secure");
+
+    const railway = { WOVE_ENV: "production", RAILWAY_PUBLIC_DOMAIN: "wove.up.railway.app" };
+    expect(corsOrigins(railway)).toContain("https://wove.up.railway.app");
+    expect(secureCookies(railway)).toBe(true);
+    expect(adminBaseUrl(railway)).toBe("https://wove.up.railway.app/admin");
   });
 });
 

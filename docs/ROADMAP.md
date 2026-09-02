@@ -109,6 +109,7 @@ Typed tool registry (REST + MCP + OpenAPI from one source), scoped agent identit
 5. ~~Collections~~ ✅ shipped 2026-09-01 — schema-defined content types built in the admin (9 field types), runtime-validated entries, generic `collection.*`/`entry.*` tools over REST+MCP with JSON schemas for discovery, auto-generated admin list/form views + dynamic nav, public API, and a `collection` block (grid/list, zero-JS SSR).
 6. Plugin maturity: filters, admin UI extension points, install from admin, a registry.
 7. **Postgres driver**; multiple code themes; header/footer block areas; container queries in blocks.css (true mobile preview).
+   - Postgres + S3 unlocks Heroku/Vercel-class one-clicks — no persistent disk required, so the ephemeral-filesystem platforms become first-class targets alongside today's Render/Railway buttons.
 
 ### Phase D — only Wove can do this
 8. ~~Site chat~~ ✅ shipped.

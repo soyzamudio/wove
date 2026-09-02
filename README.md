@@ -155,9 +155,26 @@ export WOVE_SECRET=$(openssl rand -hex 32) WOVE_SITE_URL=https://your-domain.exa
 docker compose up -d
 ```
 
-See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the full guide — Docker, a
-VPS without Docker, reverse proxy/TLS, S3 media, and every environment
-variable.
+Or deploy it to a host in one click:
+
+<p>
+  <a href="https://render.com/deploy?repo=https://github.com/soyzamudio/wove"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="32"></a>
+  <!-- TODO: swap for published template URL -->
+  <a href="https://railway.com/new"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="32"></a>
+</p>
+
+Render reads [`render.yaml`](render.yaml) and provisions the disk, the health
+check and a generated `WOVE_SECRET` for you. Railway currently lands on **New
+Project → Deploy from GitHub repo** (a true one-click link needs a published
+template — [walkthrough](docs/DEPLOY.md#publishing-a-wove-template-on-railway)).
+
+> **Attach a volume at `/app/packages/core/data` on either host.** That single
+> directory holds the SQLite database and your media; on an ephemeral
+> filesystem, a redeploy without a volume deletes the whole site.
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the full guide — Docker, one-click
+deploys, a VPS without Docker, reverse proxy/TLS, S3 media, and every
+environment variable.
 
 **Updating**: `docker compose pull && docker compose up -d`, or `bun run update` for a git install — details in [DEPLOY.md → Updating](docs/DEPLOY.md#updating).
 

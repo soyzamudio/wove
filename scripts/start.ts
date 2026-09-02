@@ -10,6 +10,7 @@
  *   PORT             core's HTTP port                        (default 4000)
  *   WOVE_SITE_PORT   the site's internal HTTP port            (default 4321)
  *   WOVE_SITE_URL    public URL of the site, e.g. https://example.com — used
+ *                    (falls back to RENDER_EXTERNAL_URL / RAILWAY_PUBLIC_DOMAIN)
  *                    for CORS + as the base the site reports back as its own
  *                    public origin (WOVE_PUBLIC_URL) unless that's set too
  *   WOVE_ADMIN_DIST  absolute path to the built admin SPA     (default packages/admin/dist)
@@ -18,6 +19,8 @@
  */
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+
+import { siteUrl } from "../packages/core/src/env";
 
 const ROOT = resolve(import.meta.dir, "..");
 
@@ -111,7 +114,10 @@ spawnChild("core", "bun", [resolve(ROOT, "packages/core/src/index.ts")], {
   WOVE_MEDIA_DIR: process.env.WOVE_MEDIA_DIR ?? resolve(coreDataDir, "media"),
 });
 
-const sitePublicUrl = process.env.WOVE_PUBLIC_URL ?? process.env.WOVE_SITE_URL;
+// Route the public origin through core's shared resolver so a PaaS-injected URL
+// (Render's RENDER_EXTERNAL_URL, Railway's RAILWAY_PUBLIC_DOMAIN) reaches the site's
+// canonical/OG links exactly like an explicit WOVE_SITE_URL would.
+const sitePublicUrl = process.env.WOVE_PUBLIC_URL ?? siteUrl();
 const siteEnv: NodeJS.ProcessEnv = {
   ...process.env,
   HOST: "127.0.0.1",

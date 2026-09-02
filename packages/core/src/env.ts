@@ -36,10 +36,32 @@ export function siteUpstream(env: Env = process.env): string | null {
   }
 }
 
+/**
+ * Public URL of the site — the single source of truth for anything that needs to know
+ * where Wove is reachable from a browser (CORS, secure cookies, admin/email links,
+ * canonical + OG URLs on the site).
+ *
+ * Precedence: an explicit `WOVE_SITE_URL` always wins. Failing that we accept the URL
+ * the host platform injects, so a one-click deploy comes up correctly configured with
+ * no manual step:
+ *   - Render sets `RENDER_EXTERNAL_URL` to the full `https://…onrender.com` URL.
+ *   - Railway sets `RAILWAY_PUBLIC_DOMAIN` to a bare hostname (no scheme) — always https.
+ * Returns `undefined` when none is set, which keeps the dev defaults in play.
+ */
+export function siteUrl(env: Env = process.env): string | undefined {
+  const explicit = env.WOVE_SITE_URL?.trim();
+  if (explicit) return explicit;
+  const render = env.RENDER_EXTERNAL_URL?.trim();
+  if (render) return render;
+  const railway = env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  if (railway) return `https://${railway}`;
+  return undefined;
+}
+
 /** Origins that are always allowed so `bun run dev` keeps working untouched. */
 export const DEV_ORIGINS = ["http://localhost:5173", "http://localhost:4321"] as const;
 
-/** Dev defaults ∪ WOVE_CORS_ORIGINS ∪ the origin of WOVE_SITE_URL. */
+/** Dev defaults ∪ WOVE_CORS_ORIGINS ∪ the origin of the resolved site URL. */
 export function corsOrigins(env: Env = process.env): string[] {
   const out = new Set<string>(DEV_ORIGINS);
   for (const o of (env.WOVE_CORS_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean)) {
@@ -49,9 +71,10 @@ export function corsOrigins(env: Env = process.env): string[] {
       out.add(o);
     }
   }
-  if (env.WOVE_SITE_URL) {
+  const site = siteUrl(env);
+  if (site) {
     try {
-      out.add(new URL(env.WOVE_SITE_URL).origin);
+      out.add(new URL(site).origin);
     } catch {
       /* ignore a malformed site url */
     }
@@ -62,7 +85,7 @@ export function corsOrigins(env: Env = process.env): string[] {
 /** `Secure` on the session cookie: implied by an https site URL, forced by WOVE_SECURE_COOKIES=1. */
 export function secureCookies(env: Env = process.env): boolean {
   if (truthy(env.WOVE_SECURE_COOKIES)) return true;
-  return (env.WOVE_SITE_URL ?? "").toLowerCase().startsWith("https://");
+  return (siteUrl(env) ?? "").toLowerCase().startsWith("https://");
 }
 
 /** Only trust `x-forwarded-*` when something in front of core is known to set them. */
@@ -100,7 +123,7 @@ export function retentionDays(env: Env = process.env): RetentionDays {
  * wrong sends invitees to the public site with a token they cannot use.
  */
 export function adminBaseUrl(env: Env = process.env): string {
-  const site = env.WOVE_SITE_URL?.trim().replace(/\/+$/, "");
+  const site = siteUrl(env)?.replace(/\/+$/, "");
   if (isProduction(env) && site) return `${site}/admin`;
   return "http://localhost:5173";
 }

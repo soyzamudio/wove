@@ -1,0 +1,60 @@
+# Render Blueprint — one-click deploy of the published Wove container.
+#   https://render.com/deploy?repo=https://github.com/soyzamudio/wove
+#
+# Spec: https://render.com/docs/blueprint-spec
+#
+# ⚠️  THE DISK IS NOT OPTIONAL. Everything Wove writes — the SQLite database and
+#     locally-stored media — lives under /app/packages/core/data. Render's
+#     filesystem is ephemeral: without the `disk:` block below, every redeploy
+#     (and every restart) wipes your posts, pages and uploads. Persistent disks
+#     require a PAID instance type, which is why `plan: starter` is set here and
+#     not `free` — the free plan cannot mount a disk at all.
+services:
+  - type: web
+    name: wove
+    runtime: image
+    # Disks pin a service to a single instance; that's correct for Wove (SQLite).
+    plan: starter
+    region: oregon
+    image:
+      # Published on every release. Render does NOT auto-redeploy when a new
+      # image is pushed to the same tag — trigger it from the dashboard, a
+      # deploy hook, or the API. Pin a version (…/wove:0.2.0) in production.
+      url: ghcr.io/soyzamudio/wove:latest
+    healthCheckPath: /health
+    disk:
+      name: wove-data
+      mountPath: /app/packages/core/data
+      sizeGB: 2
+    envVars:
+      # Render's own default PORT is 10000; pin it to the port the image
+      # documents and EXPOSEs so port detection can't guess wrong. Core reads
+      # $PORT (scripts/start.ts → packages/core), so either value works.
+      - key: PORT
+        value: 4000
+      - key: WOVE_ENV
+        value: production
+      # Render terminates TLS in front of the service and sets X-Forwarded-*.
+      - key: WOVE_TRUST_PROXY
+        value: 1
+      # Encrypts stored AI keys. Randomised 256-bit value, generated once and
+      # then kept stable across deploys — do not change it after first boot.
+      - key: WOVE_SECRET
+        generateValue: true
+      # WOVE_SITE_URL is deliberately unset: core falls back to Render's
+      # RENDER_EXTERNAL_URL (packages/core/src/env.ts → siteUrl), so CORS,
+      # secure cookies and invite/reset links are correct on first boot. Set it
+      # explicitly once you attach a custom domain.
+      # - key: WOVE_SITE_URL
+      #   value: https://your-domain.example
+      #
+      # Optional server-wide AI keys. `sync: false` makes Render prompt for the
+      # value during the Blueprint creation flow instead of storing it in git.
+      # - key: WOVE_AI_ANTHROPIC_KEY
+      #   sync: false
+      # - key: WOVE_AI_OPENAI_KEY
+      #   sync: false
+      # - key: WOVE_AI_GOOGLE_KEY
+      #   sync: false
+      # - key: WOVE_AI_XAI_KEY
+      #   sync: false
