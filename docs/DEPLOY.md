@@ -92,24 +92,46 @@ Docker image** with `ghcr.io/soyzamudio/wove:latest`). The button above links to
 public GitHub repo in one hop. Publishing one takes about five minutes; the
 walkthrough is below.
 
-[`railway.json`](../railway.json) in the repo root sets the healthcheck
-(`/health`), the restart policy (`ON_FAILURE`, 10 retries) and asserts the
-required mount path, for a repo-based deploy.
+The repo carries two Railway configs, because neither one alone does the job:
+
+**[`.railway/railway.ts`](../.railway/railway.ts)** — the current
+[Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
+format, and **the only Railway config that can declare the volume**. It defines
+the service from the GHCR image, the `/health` check, one replica, and a 2 GB
+volume mounted at `/app/packages/core/data`. IaC is CLI-driven — a git push does
+*not* apply it:
+
+```sh
+npm install railway          # provides the `railway/iac` module
+railway login && railway link
+railway config plan          # preview
+railway config apply         # apply after confirmation
+```
+
+It leaves `WOVE_SECRET` unset on purpose: core generates one on first boot into
+`data/secret`, which is on the volume, so it survives redeploys without being
+stored anywhere. `WOVE_SITE_URL` is unset too — core falls back to Railway's
+`RAILWAY_PUBLIC_DOMAIN`.
+
+**[`railway.json`](../railway.json)** — the older repo config-as-code, kept for
+existing services. It sets the healthcheck, the restart policy (`ON_FAILURE`, 10
+retries — a knob IaC does not document at the DSL level) and asserts the
+required mount path.
 
 Two caveats, both confirmed against Railway's own docs:
 
 - **Volumes cannot be declared in `railway.json`.** The
   [schema](https://railway.com/railway.schema.json) has no volume key; the
   closest thing, `deploy.requiredMountPath`, only *asserts* that a mount is
-  required — it does not create one. Volumes are created in the dashboard, via
-  `railway volume add --mount-path …`, in the template composer, or in
-  [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code).
+  required — it does not create one. Volumes come from the dashboard,
+  `railway volume add --mount-path …`, the template composer, or IaC.
+  `railway.json` also cannot point at a prebuilt image — there is no `image`
+  key — which is why it builds the Dockerfile instead.
 - **`railway.json` / `railway.toml` config-as-code is deprecated.** Railway's
   [IaC docs](https://docs.railway.com/infrastructure-as-code) state new services
   cannot opt into it and that existing files **stop being read on 2026-12-01**.
-  The replacement is a `.railway/railway.ts` project definition applied with the
-  CLI. Treat `railway.json` here as a convenience for existing services; the
-  template below is the durable path.
+  Use `.railway/railway.ts` for anything new; use the template below for a
+  genuine one-click button.
 
 #### Publishing a Wove template on Railway
 
@@ -124,13 +146,13 @@ the README and the landing page (both currently carry a `TODO` comment).
 3. **Right-click the service → Attach Volume**, and set the mount path to
    **`/app/packages/core/data`**. This is the step that makes the deploy durable —
    do not skip it.
-4. Add the environment variables:
-   - `WOVE_SECRET` = `${{secret(32)}}` — Railway's generated-secret template
-     function, the equivalent of Render's `generateValue: true`.
-   - `WOVE_ENV` = `production`
-   - `WOVE_TRUST_PROXY` = `1`
-   - `PORT` = `4000`
-   Leave `WOVE_SITE_URL` unset — core falls back to `RAILWAY_PUBLIC_DOMAIN`.
+4. Add the environment variables `WOVE_ENV=production`, `WOVE_TRUST_PROXY=1`
+   and `PORT=4000`. Leave **`WOVE_SITE_URL` unset** — core falls back to
+   `RAILWAY_PUBLIC_DOMAIN`. Leave **`WOVE_SECRET` unset** too: core generates one
+   on first boot into `data/secret`, which lives on the volume you just
+   attached, so it persists across redeploys with no template plumbing. (If you
+   would rather have Railway mint it, the template composer's variable editor
+   offers a generated value — the equivalent of Render's `generateValue: true`.)
 5. Set the service's healthcheck path to `/health` and generate a public domain
    for it.
 6. Click **Publish** and fill out the template form.
