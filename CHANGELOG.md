@@ -10,6 +10,16 @@ Wove is pre-1.0. Until v1.0.0:
 Updating: Docker → `docker compose pull && docker compose up -d`; git install → `bun run update`.
 See [docs/DEPLOY.md](docs/DEPLOY.md#updating).
 
+## v0.1.1 — 2026-09-02
+
+### Fixes
+- chown PaaS-mounted data volumes in a root entrypoint, then drop to the wove user (Railway/Render EACCES)
+
+### Changes
+- Railway: add .railway/railway.ts, the only config that can declare the volume
+- render.yaml: quote PORT and WOVE_TRUST_PROXY so YAML keeps them strings
+- One-click deploys: Render blueprint, Railway config, PaaS site-URL fallback
+
 ## v0.1.0 — 2026-09-01
 
 First tagged release. What's in it:
