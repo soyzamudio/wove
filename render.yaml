@@ -31,12 +31,12 @@ services:
       # documents and EXPOSEs so port detection can't guess wrong. Core reads
       # $PORT (scripts/start.ts → packages/core), so either value works.
       - key: PORT
-        value: 4000
+        value: "4000"
       - key: WOVE_ENV
         value: production
       # Render terminates TLS in front of the service and sets X-Forwarded-*.
       - key: WOVE_TRUST_PROXY
-        value: 1
+        value: "1"
       # Encrypts stored AI keys. Randomised 256-bit value, generated once and
       # then kept stable across deploys — do not change it after first boot.
       - key: WOVE_SECRET
