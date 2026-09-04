@@ -59,7 +59,7 @@ In the admin, go to **Agents → New agent**, pick scopes, and copy the key. The
 }
 ```
 
-Your agent now sees 40+ tools — `post.create`, `ai.generatePage`, `menu.set`, `design.update`, `import.wordpress`, and everything else the admin can do — each with a schema and a description. The same tools are one HTTP call away:
+Your agent now sees all 79 tools — `post.create`, `ai.generatePage`, `menu.set`, `design.update`, `import.wordpress`, and everything else the admin can do — each with a schema and a description ([60-second connect guide](docs/AGENTS.md)). The same tools are one HTTP call away:
 
 ```sh
 curl -X POST http://localhost:4000/api/tools/post.create \
